@@ -1,5 +1,31 @@
+# Secretos — NUNCA subir a GitHub
+.env
+*-service-account*.json
+*credentials*.json
+
+# Base de datos local
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
 __pycache__/
 *.pyc
-.env
+*.pyo
 .venv/
 venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
