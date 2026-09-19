@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.enums import NUMEROS_DIENTE_VALIDOS
 from app.models.odontograma import DienteAnatomia, OdontogramaHallazgo, OdontogramaLesionApical
 from app.routers.pacientes import obtener_paciente_o_404
@@ -17,7 +17,7 @@ from app.schemas.odontograma import (
 )
 from app.services.odontograma_logic import aplicar_hallazgo, resolver_tipo_lesion_apical
 
-router = APIRouter(tags=["odontograma"])
+router = APIRouter(tags=["odontograma"], dependencies=[Depends(requerir_dra)])
 
 
 def _validar_numero_diente(numero_diente: int) -> None:

@@ -4,11 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_current_usuario, get_session
 from app.models.profesional_tratante import ProfesionalTratante
 from app.schemas.profesional_tratante import ProfesionalTratanteCreate, ProfesionalTratanteRead
 
-router = APIRouter(tags=["profesionales-tratantes"])
+# Catalogo de nombres de referencia, no dato clinico del paciente ->
+# accesible a ambos roles, solo exige estar autenticado. Asuncion: no estaba
+# en la lista explicita de endpoints exclusivos de dra.
+router = APIRouter(
+    tags=["profesionales-tratantes"], dependencies=[Depends(get_current_usuario)]
+)
 
 
 async def obtener_profesional_tratante_o_404(

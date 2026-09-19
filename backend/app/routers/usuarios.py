@@ -4,16 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.models.usuario import Usuario
 from app.schemas.usuario import UsuarioCreate, UsuarioRead
+from app.security import hash_password
 
-router = APIRouter(prefix="/usuarios", tags=["usuarios"])
+router = APIRouter(prefix="/usuarios", tags=["usuarios"], dependencies=[Depends(requerir_dra)])
 
 
 @router.post("", response_model=UsuarioRead, status_code=201)
 async def crear_usuario(datos: UsuarioCreate, session: AsyncSession = Depends(get_session)):
-    usuario = Usuario(**datos.model_dump())
+    datos_usuario = datos.model_dump(exclude={"password"})
+    usuario = Usuario(**datos_usuario, password_hash=hash_password(datos.password))
     session.add(usuario)
     await session.commit()
     await session.refresh(usuario)

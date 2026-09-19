@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.tratamiento import Tratamiento
 from app.routers.pacientes import obtener_paciente_o_404
@@ -12,7 +12,7 @@ from app.schemas.bitacora_tratamiento import BitacoraTratamientoCreate, Bitacora
 from app.schemas.odontograma import OdontogramaHallazgoCreate
 from app.services.odontograma_logic import aplicar_hallazgo
 
-router = APIRouter(tags=["bitacora"])
+router = APIRouter(tags=["bitacora"], dependencies=[Depends(requerir_dra)])
 
 
 @router.post(

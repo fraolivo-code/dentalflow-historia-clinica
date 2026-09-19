@@ -4,12 +4,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.models.visita import Visita
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.visita import VisitaCreate, VisitaRead
 
-router = APIRouter(tags=["visitas"])
+# Bloqueado a dra por completo por ahora: el unico endpoint de creacion exige
+# el examen clinico completo (higiene, examenes, hallazgos) en un solo POST,
+# no existe todavia una version liviana de "iniciar visita" con solo
+# motivo_consulta para asistente. Esa version liviana se define junto con el
+# resto del flujo clinico de asistente, en una tarea aparte (confirmado).
+router = APIRouter(tags=["visitas"], dependencies=[Depends(requerir_dra)])
 
 
 @router.post("/pacientes/{paciente_id}/visitas", response_model=VisitaRead, status_code=201)

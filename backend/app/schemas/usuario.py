@@ -9,6 +9,7 @@ from app.enums import RolUsuario
 class UsuarioCreate(BaseModel):
     nombre: str
     rol: RolUsuario
+    password: str
     activo: bool = True
 
 

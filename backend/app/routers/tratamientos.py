@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.models.common import ahora
 from app.models.tratamiento import Tratamiento, TratamientoDiente
 from app.routers.pacientes import obtener_paciente_o_404
 from app.routers.profesionales_tratantes import obtener_profesional_tratante_o_404
 from app.schemas.tratamiento import TratamientoCreate, TratamientoRead, TratamientoUpdate
 
-router = APIRouter(tags=["tratamientos"])
+router = APIRouter(tags=["tratamientos"], dependencies=[Depends(requerir_dra)])
 
 
 async def _leer_tratamiento_con_dientes(session: AsyncSession, tratamiento: Tratamiento) -> Tratamiento:

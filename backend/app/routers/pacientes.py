@@ -4,11 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_current_usuario, get_session
 from app.models.paciente import Paciente
 from app.schemas.paciente import PacienteCreate, PacienteRead
 
-router = APIRouter(prefix="/pacientes", tags=["pacientes"])
+# Paciente basico: accesible para dra y asistente por igual (ambas necesitan
+# poder ver/crear pacientes) — solo exige estar autenticado, sin rol especifico.
+router = APIRouter(
+    prefix="/pacientes", tags=["pacientes"], dependencies=[Depends(get_current_usuario)]
+)
 
 
 @router.post("", response_model=PacienteRead, status_code=201)

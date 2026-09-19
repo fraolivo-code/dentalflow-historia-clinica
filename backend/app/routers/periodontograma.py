@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.models.periodontograma import PeriodontogramaDienteResumen, PeriodontogramaRegistro
 from app.models.visita import Visita
 from app.schemas.periodontograma import PeriodontogramaVisitaCreate, PeriodontogramaVisitaRead
 
-router = APIRouter(tags=["periodontograma"])
+router = APIRouter(tags=["periodontograma"], dependencies=[Depends(requerir_dra)])
 
 
 async def _obtener_visita_o_404(visita_id: UUID, session: AsyncSession) -> Visita:

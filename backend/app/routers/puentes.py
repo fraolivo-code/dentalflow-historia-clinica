@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.models.odontograma import PuenteFijo, PuenteFijoDiente
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.odontograma import PuenteFijoCreate, PuenteFijoRead
@@ -14,7 +14,8 @@ from app.services.odontograma_logic import (
     validar_contiguidad_puente,
 )
 
-router = APIRouter(tags=["puentes"])
+# Parte del dominio odontograma (clinico) -> dra solamente.
+router = APIRouter(tags=["puentes"], dependencies=[Depends(requerir_dra)])
 
 
 async def _leer_puente_con_dientes(session: AsyncSession, puente: PuenteFijo) -> PuenteFijo:

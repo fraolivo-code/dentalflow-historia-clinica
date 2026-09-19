@@ -4,12 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.models.observacion import Observacion
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.observacion import ObservacionCreate, ObservacionRead
 
-router = APIRouter(tags=["observaciones"])
+# Bloqueado a dra por completo por ahora, aunque el modelo ya distingue
+# tipo_observacion (clinica/administrativa/otra): filtrar por tipo para dejar
+# pasar solo las administrativas a asistente es un cambio propio, mas grande
+# (validar en POST, filtrar en GET), que queda para otra tarea (confirmado).
+router = APIRouter(tags=["observaciones"], dependencies=[Depends(requerir_dra)])
 
 
 @router.post(

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_session, requerir_dra
 from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.common import ahora
 from app.routers.pacientes import obtener_paciente_o_404
@@ -15,7 +15,7 @@ from app.schemas.antecedente import (
     PacienteAntecedenteUpsert,
 )
 
-router = APIRouter(tags=["antecedentes"])
+router = APIRouter(tags=["antecedentes"], dependencies=[Depends(requerir_dra)])
 
 
 @router.get("/antecedentes", response_model=list[AntecedenteRead])

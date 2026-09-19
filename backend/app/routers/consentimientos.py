@@ -4,12 +4,15 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session
+from app.deps import get_current_usuario, get_session
 from app.models.consentimiento import Consentimiento
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.consentimiento import ConsentimientoCreate, ConsentimientoRead
 
-router = APIRouter(tags=["consentimientos"])
+# No es dato clinico (es papeleo de consentimiento) -> accesible a ambos
+# roles, solo exige estar autenticado. Asuncion: no estaba en la lista
+# explicita de endpoints exclusivos de dra.
+router = APIRouter(tags=["consentimientos"], dependencies=[Depends(get_current_usuario)])
 
 
 @router.post(
