@@ -44,12 +44,12 @@ async def obtener_anatomia_diente(numero_diente: int, session: AsyncSession = De
 async def obtener_odontograma_actual(
     paciente_id: UUID, session: AsyncSession = Depends(get_session)
 ):
-    """Hallazgos actualmente activos de todo el odontograma del paciente (3.1)."""
+    """Hallazgos actualmente activos (no resueltos) del odontograma del paciente (3.1)."""
     await obtener_paciente_o_404(paciente_id, session)
     resultado = await session.execute(
         select(OdontogramaHallazgo).where(
             OdontogramaHallazgo.paciente_id == paciente_id,
-            OdontogramaHallazgo.activo.is_(True),
+            OdontogramaHallazgo.resuelto.is_(False),
         )
     )
     return resultado.scalars().all()
@@ -80,7 +80,7 @@ async def crear_hallazgo(
 async def listar_hallazgos_de_diente(
     paciente_id: UUID, numero_diente: int, session: AsyncSession = Depends(get_session)
 ):
-    """Historico completo del diente, incluidos los hallazgos ya cerrados (activo=False)."""
+    """Historico completo del diente, incluidos los hallazgos ya cerrados (resuelto=True)."""
     _validar_numero_diente(numero_diente)
     await obtener_paciente_o_404(paciente_id, session)
     resultado = await session.execute(

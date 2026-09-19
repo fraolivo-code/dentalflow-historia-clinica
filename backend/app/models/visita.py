@@ -51,6 +51,8 @@ class Visita(Base, UUIDPk, AuditMixin):
     examen_ex_pc: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     examen_rx_panoramica: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     examen_rutina_quirurgica: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Etapa 3, seccion 3.
+    examen_tomografia: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     examen_otras: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     hallazgos: Mapped[str | None] = mapped_column(Text, nullable=True)

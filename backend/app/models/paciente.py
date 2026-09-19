@@ -16,6 +16,9 @@ from app.models.common import AuditMixin, UUIDPk
 class Paciente(Base, UUIDPk, AuditMixin):
     __tablename__ = "paciente"
 
+    # Correlativo generado por el sistema, no basado en cedula (Etapa 3, seccion 1)
+    # — evita el caso de menores u otros pacientes sin documento.
+    numero_historia: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     telefono_fijo: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # Llave de vinculacion con Alma (fase1-whatsapp-bot): mismo numero de WhatsApp.
     movil: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -32,3 +35,15 @@ class Paciente(Base, UUIDPk, AuditMixin):
     medicamentos_actuales_detalle: Mapped[str | None] = mapped_column(Text, nullable=True)
     tratamiento_medico_actual: Mapped[str | None] = mapped_column(Text, nullable=True)
     fecha_registro: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # Etapa 3, seccion 1: caso del paciente remitido por seguro que regresa
+    # tiempo despues a pagar por su cuenta — el correlativo de este consultorio
+    # se le asigna ahora, pero su primera atencion real fue antes.
+    fecha_primera_consulta_real: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Solo tiene sentido si se lleno fecha_primera_consulta_real.
+    historia_origen: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Referencia a archivo (mismo patron que consentimiento.archivo): solo la
+    # ruta/clave del objeto, sin logica de storage real conectada todavia
+    # (Cloudflare R2, pendiente de credenciales — ver especificacion seccion 1.1).
+    documento_historia_anterior: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    foto: Mapped[str | None] = mapped_column(String(1000), nullable=True)

@@ -1,11 +1,16 @@
 from fastapi import FastAPI
 
 from app.routers import (
+    antecedentes,
+    bitacora,
     consentimientos,
+    observaciones,
     odontograma,
     pacientes,
     periodontograma,
+    profesionales_tratantes,
     puentes,
+    tratamientos,
     usuarios,
     visitas,
 )
@@ -19,6 +24,11 @@ app.include_router(odontograma.router)
 app.include_router(puentes.router)
 app.include_router(periodontograma.router)
 app.include_router(consentimientos.router)
+app.include_router(antecedentes.router)
+app.include_router(profesionales_tratantes.router)
+app.include_router(tratamientos.router)
+app.include_router(bitacora.router)
+app.include_router(observaciones.router)
 
 
 @app.get("/health", tags=["health"])

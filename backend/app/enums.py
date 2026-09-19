@@ -169,3 +169,37 @@ class FurcacionGlickman(str, enum.Enum):
     grado_i = "I"
     grado_ii = "II"
     grado_iii = "III"
+
+
+class OrigenHallazgo(str, enum.Enum):
+    """
+    Etapa 3, seccion 1: distingue un hallazgo registrado en este consultorio
+    de uno que el paciente ya traia de otro lugar (remitido por seguro, etc.).
+    """
+
+    aqui = "aqui"
+    externo = "externo"
+
+
+class EstadoTratamiento(str, enum.Enum):
+    """Etapa 3, seccion 6."""
+
+    indicado = "indicado"
+    en_curso = "en_curso"
+    completado = "completado"
+    suspendido = "suspendido"
+
+
+class OrigenTratamiento(str, enum.Enum):
+    """Etapa 3, seccion 6. Mismo concepto que OrigenHallazgo, entidad distinta."""
+
+    aqui = "aqui"
+    remitido_externo = "remitido_externo"
+
+
+class TipoObservacion(str, enum.Enum):
+    """Etapa 3, seccion 9. Reemplaza general/clinica/administrativa de Etapa 1."""
+
+    clinica = "clinica"
+    administrativa = "administrativa"
+    otra = "otra"

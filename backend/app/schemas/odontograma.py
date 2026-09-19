@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from app.enums import (
     CondicionIndividualPuente,
     EstadoGeneralPuente,
+    OrigenHallazgo,
     RolDientePuente,
     SuperficieDental,
     TipoHallazgo,
@@ -30,6 +31,10 @@ class OdontogramaHallazgoCreate(NumeroDienteValidoMixin):
     fecha: date
     notas: str | None = None
     creado_por: UUID
+    # Etapa 3: vinculo con el tratamiento multisesion del que este hallazgo
+    # forma parte. None cuando se crea directo desde la pantalla del
+    # odontograma sin pasar por un tratamiento.
+    tratamiento_id: UUID | None = None
 
 
 class OdontogramaHallazgoRead(AuditRead):
@@ -42,7 +47,11 @@ class OdontogramaHallazgoRead(AuditRead):
     tipo_hallazgo: TipoHallazgo
     superficie: SuperficieDental | None
     fecha: date
-    activo: bool
+    resuelto: bool
+    resuelto_fecha: date | None
+    resuelto_por_hallazgo_id: UUID | None
+    origen: OrigenHallazgo
+    tratamiento_id: UUID | None
     notas: str | None
 
 

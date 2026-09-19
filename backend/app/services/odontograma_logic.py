@@ -14,6 +14,7 @@ from app.enums import (
     GRUPO_ENDO,
     GRUPO_EXCLUSIVE,
     CondicionIndividualPuente,
+    OrigenHallazgo,
     TipoHallazgo,
     TipoLesionApical,
 )
@@ -42,8 +43,15 @@ async def aplicar_hallazgo(
     - endo desactiva los demas endo activos, pero no los independent.
     - independent (y endo) desactivan cualquier exclusive activo.
 
-    "Desactivar" = activo=False (cierra el hallazgo sin borrar el historico,
-    seccion 1.2), nunca DELETE.
+    "Desactivar" = resuelto=True (cierra el hallazgo sin borrar el historico,
+    seccion 1.2), nunca DELETE. Ademas registra resuelto_fecha y
+    resuelto_por_hallazgo_id (Etapa 3, seccion 7).
+
+    El INSERT del nuevo hallazgo se hace (via flush) antes de los UPDATE que
+    lo referencian en resuelto_por_hallazgo_id: es una FK autorreferencial
+    sin `relationship()` declarada, asi que SQLAlchemy no sabe ordenarlos
+    solo — si no se fuerza el orden, el UPDATE puede viajar antes que el
+    INSERT y Postgres lo rechaza (la fila referenciada todavia no existe).
     """
     grupo_nuevo = grupo_de(datos.tipo_hallazgo)
 
@@ -51,11 +59,12 @@ async def aplicar_hallazgo(
         select(OdontogramaHallazgo).where(
             OdontogramaHallazgo.paciente_id == paciente_id,
             OdontogramaHallazgo.numero_diente == numero_diente,
-            OdontogramaHallazgo.activo.is_(True),
+            OdontogramaHallazgo.resuelto.is_(False),
         )
     )
     activos = list(resultado.scalars().all())
 
+    a_desactivar = []
     for existente in activos:
         grupo_existente = grupo_de(existente.tipo_hallazgo)
         debe_desactivar = (
@@ -64,9 +73,7 @@ async def aplicar_hallazgo(
             or (grupo_nuevo == "independent" and grupo_existente == "exclusive")
         )
         if debe_desactivar:
-            existente.activo = False
-            existente.actualizado_en = ahora()
-            existente.actualizado_por = datos.creado_por
+            a_desactivar.append(existente)
 
     nuevo = OdontogramaHallazgo(
         paciente_id=paciente_id,
@@ -75,11 +82,25 @@ async def aplicar_hallazgo(
         tipo_hallazgo=datos.tipo_hallazgo,
         superficie=datos.superficie,
         fecha=datos.fecha,
-        activo=True,
+        resuelto=False,
+        # Todo lo creado por esta API se origina en este consultorio; el caso
+        # "externo" (paciente remitido) se resuelve manualmente, sin pasar
+        # por esta funcion.
+        origen=OrigenHallazgo.aqui,
+        tratamiento_id=datos.tratamiento_id,
         notas=datos.notas,
         creado_por=datos.creado_por,
     )
     session.add(nuevo)
+    await session.flush()  # inserta `nuevo` antes de que algo lo referencie
+
+    for existente in a_desactivar:
+        existente.resuelto = True
+        existente.resuelto_fecha = datos.fecha
+        existente.resuelto_por_hallazgo_id = nuevo.id
+        existente.actualizado_en = ahora()
+        existente.actualizado_por = datos.creado_por
+
     await session.commit()
     await session.refresh(nuevo)
     return nuevo
@@ -98,7 +119,7 @@ async def resolver_tipo_lesion_apical(
             OdontogramaHallazgo.paciente_id == paciente_id,
             OdontogramaHallazgo.numero_diente == numero_diente,
             OdontogramaHallazgo.tipo_hallazgo == TipoHallazgo.implante,
-            OdontogramaHallazgo.activo.is_(True),
+            OdontogramaHallazgo.resuelto.is_(False),
         )
     )
     es_implante = tiene_implante.scalar_one_or_none() is not None

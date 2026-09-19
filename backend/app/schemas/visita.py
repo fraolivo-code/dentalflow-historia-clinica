@@ -20,6 +20,7 @@ class VisitaCreate(BaseModel):
     examen_ex_pc: bool = False
     examen_rx_panoramica: bool = False
     examen_rutina_quirurgica: bool = False
+    examen_tomografia: bool = False
     examen_otras: str | None = None
     hallazgos: str | None = None
     creado_por: UUID
@@ -42,5 +43,6 @@ class VisitaRead(AuditRead):
     examen_ex_pc: bool
     examen_rx_panoramica: bool
     examen_rutina_quirurgica: bool
+    examen_tomografia: bool
     examen_otras: str | None
     hallazgos: str | None

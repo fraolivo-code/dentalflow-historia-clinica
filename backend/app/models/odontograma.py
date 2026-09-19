@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 from app.enums import (
     EstadoGeneralPuente,
+    OrigenHallazgo,
     RolDientePuente,
     SuperficieDental,
     TipoHallazgo,
@@ -69,7 +70,26 @@ class OdontogramaHallazgo(Base, UUIDPk, AuditMixin):
         Enum(SuperficieDental, name="superficie_dental", native_enum=True), nullable=True
     )
     fecha: Mapped[date] = mapped_column(Date, nullable=False)
-    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Etapa 3, seccion 7: reemplaza a `activo`. resuelto=True cierra el
+    # hallazgo (equivalente al viejo activo=False) pero ahora con el detalle
+    # de cuando y por cual hallazgo nuevo quedo resuelto, en vez de un simple
+    # booleano — nunca se borra el historico.
+    resuelto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    resuelto_fecha: Mapped[date | None] = mapped_column(Date, nullable=True)
+    resuelto_por_hallazgo_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("odontograma_hallazgo.id"), nullable=True
+    )
+    # Distingue un hallazgo registrado aqui de uno que el paciente ya traia
+    # (remitido por seguro, etc.).
+    origen: Mapped[OrigenHallazgo] = mapped_column(
+        Enum(OrigenHallazgo, name="origen_hallazgo", native_enum=True), nullable=False
+    )
+    # Vinculo con el tratamiento multisesion del que este hallazgo forma
+    # parte (regla de creacion automatica, seccion 7 de la especificacion de
+    # formularios). Nullable: no todo hallazgo viene de un tratamiento.
+    tratamiento_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tratamiento.id"), nullable=True, index=True
+    )
     notas: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
