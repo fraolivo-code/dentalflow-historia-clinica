@@ -19,11 +19,10 @@ from app.routers import (
 
 app = FastAPI(title="Historia Clinica Digital — Fase 2")
 
-# Abierto a cualquier origen mientras el frontend no tiene un dominio fijo en
-# Railway (Etapa 3). Restringir al dominio real una vez desplegado.
+# Restringido al dominio real del frontend en Railway (Etapa 3), ya desplegado.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://dentalflow-historia-clinica-frontend-production.up.railway.app"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
