@@ -32,7 +32,7 @@ class Visita(Base, UUIDPk, AuditMixin):
     examen_extraoral_ganglios: Mapped[str | None] = mapped_column(Text, nullable=True)
     examen_extraoral_otros: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    higiene: Mapped[HigieneBucal] = mapped_column(
+    higiene: Mapped[HigieneBucal | None] = mapped_column(
         Enum(
             HigieneBucal,
             name="higiene_bucal",
@@ -42,7 +42,9 @@ class Visita(Base, UUIDPk, AuditMixin):
             # SQLAlchemy manda el .name por defecto y Postgres lo rechaza.
             values_callable=lambda enum_cls: [e.value for e in enum_cls],
         ),
-        nullable=False,
+        # nullable desde 20/09/2026 (migracion 0006): visita liviana de
+        # asistente no trae examen clinico todavia.
+        nullable=True,
     )
     tejidos_blandos: Mapped[str | None] = mapped_column(Text, nullable=True)
 

@@ -11,18 +11,47 @@ class VisitaCreate(BaseModel):
     # responsable y creado_por ya NO se aceptan del cliente (19/09/2026): el
     # unico rol con acceso a este endpoint hoy es dra, asi que ambos se
     # derivan del usuario autenticado (JWT) — ver "Nota" en visitas.py.
+    #
+    # higiene paso a opcional (20/09/2026): asistente crea una visita
+    # liviana con solo fecha+motivo_consulta; dra completa el resto despues
+    # via PATCH. El router rechaza cualquier campo clinico si el rol es
+    # asistente — ver _validar_visita_liviana_si_asistente en visitas.py.
     fecha: date
     motivo_consulta: str | None = None
     examen_extraoral_atm: str | None = None
     examen_extraoral_ganglios: str | None = None
     examen_extraoral_otros: str | None = None
-    higiene: HigieneBucal
+    higiene: HigieneBucal | None = None
     tejidos_blandos: str | None = None
     examen_rx_periapical: bool = False
     examen_ex_pc: bool = False
     examen_rx_panoramica: bool = False
     examen_rutina_quirurgica: bool = False
     examen_tomografia: bool = False
+    examen_otras: str | None = None
+    hallazgos: str | None = None
+
+
+class VisitaUpdate(BaseModel):
+    """
+    Completa la fase clinica de una visita ya creada (20/09/2026) — solo
+    dra, via PATCH /visitas/{id}. Mismos campos clinicos que VisitaCreate,
+    todos opcionales para actualizacion parcial (exclude_unset en el
+    router, mismo patron que TratamientoUpdate). No incluye paciente_id ni
+    fecha a proposito: no tiene sentido editarlos despues de creada.
+    """
+
+    motivo_consulta: str | None = None
+    examen_extraoral_atm: str | None = None
+    examen_extraoral_ganglios: str | None = None
+    examen_extraoral_otros: str | None = None
+    higiene: HigieneBucal | None = None
+    tejidos_blandos: str | None = None
+    examen_rx_periapical: bool | None = None
+    examen_ex_pc: bool | None = None
+    examen_rx_panoramica: bool | None = None
+    examen_rutina_quirurgica: bool | None = None
+    examen_tomografia: bool | None = None
     examen_otras: str | None = None
     hallazgos: str | None = None
 
@@ -38,7 +67,7 @@ class VisitaRead(AuditRead):
     examen_extraoral_atm: str | None
     examen_extraoral_ganglios: str | None
     examen_extraoral_otros: str | None
-    higiene: HigieneBucal
+    higiene: HigieneBucal | None
     tejidos_blandos: str | None
     examen_rx_periapical: bool
     examen_ex_pc: bool
