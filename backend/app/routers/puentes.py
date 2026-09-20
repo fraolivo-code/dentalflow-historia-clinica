@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session, requerir_dra
+from app.deps import get_current_usuario, get_session, requerir_dra
 from app.models.odontograma import PuenteFijo, PuenteFijoDiente
+from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.odontograma import PuenteFijoCreate, PuenteFijoRead
 from app.services.odontograma_logic import (
@@ -30,7 +31,10 @@ async def _leer_puente_con_dientes(session: AsyncSession, puente: PuenteFijo) ->
 
 @router.post("/pacientes/{paciente_id}/puentes", response_model=PuenteFijoRead, status_code=201)
 async def crear_puente(
-    paciente_id: UUID, datos: PuenteFijoCreate, session: AsyncSession = Depends(get_session)
+    paciente_id: UUID,
+    datos: PuenteFijoCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     await obtener_paciente_o_404(paciente_id, session)
     condiciones = [resolver_condicion_individual_puente(d.condicion_individual) for d in datos.dientes]
@@ -41,7 +45,7 @@ async def crear_puente(
         visita_id=datos.visita_id,
         estado_general=datos.estado_general,
         fecha=datos.fecha,
-        creado_por=datos.creado_por,
+        creado_por=usuario.id,
     )
     session.add(puente)
     await session.flush()  # necesitamos puente.id antes de crear los hijos
@@ -53,7 +57,7 @@ async def crear_puente(
                 numero_diente=diente.numero_diente,
                 rol=diente.rol,
                 condicion_individual=condicion,
-                creado_por=datos.creado_por,
+                creado_por=usuario.id,
             )
         )
 

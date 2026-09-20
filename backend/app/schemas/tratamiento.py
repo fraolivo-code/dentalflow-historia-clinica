@@ -16,7 +16,6 @@ class TratamientoCreate(BaseModel):
     fecha_fin: date | None = None
     profesional_tratante_id: UUID
     notas_relevantes: str | None = None
-    creado_por: UUID
     # Dientes involucrados (seccion 6, tratamiento_diente). Vacio si el
     # tratamiento no aplica a dientes puntuales.
     dientes: list[int] = []
@@ -39,7 +38,6 @@ class TratamientoUpdate(BaseModel):
     estado: EstadoTratamiento | None = None
     fecha_fin: date | None = None
     notas_relevantes: str | None = None
-    actualizado_por: UUID
 
 
 class TratamientoDienteRead(BaseModel):

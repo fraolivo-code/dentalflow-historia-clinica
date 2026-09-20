@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session, requerir_dra
+from app.deps import get_current_usuario, get_session, requerir_dra
 from app.models.periodontograma import PeriodontogramaDienteResumen, PeriodontogramaRegistro
+from app.models.usuario import Usuario
 from app.models.visita import Visita
 from app.schemas.periodontograma import PeriodontogramaVisitaCreate, PeriodontogramaVisitaRead
 
@@ -28,6 +29,7 @@ async def cargar_periodontograma(
     visita_id: UUID,
     datos: PeriodontogramaVisitaCreate,
     session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     """
     Carga completa de un levantamiento periodontal (1.5): visita_id es
@@ -40,7 +42,7 @@ async def cargar_periodontograma(
         PeriodontogramaRegistro(
             paciente_id=visita.paciente_id,
             visita_id=visita_id,
-            creado_por=datos.creado_por,
+            creado_por=usuario.id,
             **r.model_dump(),
         )
         for r in datos.registros
@@ -49,7 +51,7 @@ async def cargar_periodontograma(
         PeriodontogramaDienteResumen(
             paciente_id=visita.paciente_id,
             visita_id=visita_id,
-            creado_por=datos.creado_por,
+            creado_por=usuario.id,
             **r.model_dump(),
         )
         for r in datos.resumenes

@@ -24,7 +24,6 @@ class PacienteAntecedenteUpsert(BaseModel):
     antecedente_id: UUID
     presente: bool = False
     detalle: str | None = None
-    creado_por: UUID
 
 
 class PacienteAntecedenteRead(AuditRead):

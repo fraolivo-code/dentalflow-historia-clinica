@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session, requerir_dra
+from app.deps import get_current_usuario, get_session, requerir_dra
 from app.models.observacion import Observacion
+from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.observacion import ObservacionCreate, ObservacionRead
 
@@ -20,11 +21,14 @@ router = APIRouter(tags=["observaciones"], dependencies=[Depends(requerir_dra)])
     "/pacientes/{paciente_id}/observaciones", response_model=ObservacionRead, status_code=201
 )
 async def crear_observacion(
-    paciente_id: UUID, datos: ObservacionCreate, session: AsyncSession = Depends(get_session)
+    paciente_id: UUID,
+    datos: ObservacionCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     """No depende de una visita activa (seccion 9: "su propio espacio")."""
     await obtener_paciente_o_404(paciente_id, session)
-    observacion = Observacion(paciente_id=paciente_id, **datos.model_dump())
+    observacion = Observacion(paciente_id=paciente_id, **datos.model_dump(), creado_por=usuario.id)
     session.add(observacion)
     await session.commit()
     await session.refresh(observacion)

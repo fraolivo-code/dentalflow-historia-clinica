@@ -60,7 +60,6 @@ class PeriodontogramaDienteResumenRead(AuditRead):
 class PeriodontogramaVisitaCreate(BaseModel):
     """Carga completa de un levantamiento periodontal para una visita."""
 
-    creado_por: UUID
     registros: list[PeriodontogramaRegistroCreate]
     resumenes: list[PeriodontogramaDienteResumenCreate]
 

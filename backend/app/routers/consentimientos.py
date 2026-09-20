@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session
 from app.models.consentimiento import Consentimiento
+from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.consentimiento import ConsentimientoCreate, ConsentimientoRead
 
@@ -21,10 +22,15 @@ router = APIRouter(tags=["consentimientos"], dependencies=[Depends(get_current_u
     status_code=201,
 )
 async def crear_consentimiento(
-    paciente_id: UUID, datos: ConsentimientoCreate, session: AsyncSession = Depends(get_session)
+    paciente_id: UUID,
+    datos: ConsentimientoCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     await obtener_paciente_o_404(paciente_id, session)
-    consentimiento = Consentimiento(paciente_id=paciente_id, **datos.model_dump())
+    consentimiento = Consentimiento(
+        paciente_id=paciente_id, **datos.model_dump(), creado_por=usuario.id
+    )
     session.add(consentimiento)
     await session.commit()
     await session.refresh(consentimiento)

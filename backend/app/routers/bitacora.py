@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session, requerir_dra
+from app.deps import get_current_usuario, get_session, requerir_dra
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.tratamiento import Tratamiento
+from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.bitacora_tratamiento import BitacoraTratamientoCreate, BitacoraTratamientoRead
 from app.schemas.odontograma import OdontogramaHallazgoCreate
@@ -22,6 +23,7 @@ async def crear_entrada_bitacora(
     paciente_id: UUID,
     datos: BitacoraTratamientoCreate,
     session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     """
     Crea la entrada de bitacora y, si trae numero_diente + tipo_hallazgo,
@@ -39,13 +41,13 @@ async def crear_entrada_bitacora(
         paciente_id=paciente_id,
         visita_id=datos.visita_id,
         fecha=datos.fecha,
-        responsable=datos.responsable,
+        responsable=usuario.id,
         descripcion=datos.descripcion,
         numero_diente=datos.numero_diente,
         tratamiento_id=datos.tratamiento_id,
         tipo_hallazgo=datos.tipo_hallazgo,
         superficie=datos.superficie,
-        creado_por=datos.creado_por,
+        creado_por=usuario.id,
     )
     session.add(entrada)
     await session.commit()
@@ -63,9 +65,9 @@ async def crear_entrada_bitacora(
                 superficie=datos.superficie,
                 fecha=datos.fecha,
                 notas=None,
-                creado_por=datos.creado_por,
                 tratamiento_id=datos.tratamiento_id,
             ),
+            usuario.id,
         )
 
     return entrada

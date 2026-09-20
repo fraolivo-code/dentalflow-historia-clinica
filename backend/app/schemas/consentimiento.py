@@ -10,7 +10,6 @@ class ConsentimientoCreate(BaseModel):
     tipo: TipoConsentimiento
     fecha: date
     archivo: str
-    creado_por: UUID
 
 
 class ConsentimientoRead(BaseModel):

@@ -1,12 +1,14 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session
 from app.models.paciente import Paciente
+from app.models.usuario import Usuario
 from app.schemas.paciente import PacienteCreate, PacienteRead
+from app.services.correlativos import generar_numero_historia
 
 # Paciente basico: accesible para dra y asistente por igual (ambas necesitan
 # poder ver/crear pacientes) — solo exige estar autenticado, sin rol especifico.
@@ -16,8 +18,17 @@ router = APIRouter(
 
 
 @router.post("", response_model=PacienteRead, status_code=201)
-async def crear_paciente(datos: PacienteCreate, session: AsyncSession = Depends(get_session)):
-    paciente = Paciente(**datos.model_dump())
+async def crear_paciente(
+    datos: PacienteCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    numero_historia = await generar_numero_historia(session)
+    paciente = Paciente(
+        **datos.model_dump(),
+        numero_historia=numero_historia,
+        creado_por=usuario.id,
+    )
     session.add(paciente)
     await session.commit()
     await session.refresh(paciente)
@@ -25,8 +36,23 @@ async def crear_paciente(datos: PacienteCreate, session: AsyncSession = Depends(
 
 
 @router.get("", response_model=list[PacienteRead])
-async def listar_pacientes(session: AsyncSession = Depends(get_session)):
-    resultado = await session.execute(select(Paciente))
+async def listar_pacientes(q: str | None = None, session: AsyncSession = Depends(get_session)):
+    """
+    q busca por nombre_completo (parcial, sin distinguir mayusculas/acentos
+    via la extension unaccent de Postgres — migracion 0005) o por
+    numero_historia (parcial). Regla de negocio: seccion 4 de
+    especificacion-tecnica-formularios-fase2.md.
+    """
+    query = select(Paciente)
+    if q:
+        patron = f"%{q}%"
+        query = query.where(
+            or_(
+                func.unaccent(Paciente.nombre_completo).ilike(func.unaccent(patron)),
+                Paciente.numero_historia.ilike(patron),
+            )
+        )
+    resultado = await session.execute(query.order_by(Paciente.nombre_completo))
     return resultado.scalars().all()
 
 

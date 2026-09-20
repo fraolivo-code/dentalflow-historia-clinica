@@ -30,7 +30,8 @@ class OdontogramaHallazgoCreate(NumeroDienteValidoMixin):
     superficie: SuperficieDental | None = None
     fecha: date
     notas: str | None = None
-    creado_por: UUID
+    # creado_por ya NO se acepta del cliente (19/09/2026) — se deriva del
+    # usuario autenticado (JWT), este endpoint esta bloqueado a dra.
     # Etapa 3: vinculo con el tratamiento multisesion del que este hallazgo
     # forma parte. None cuando se crea directo desde la pantalla del
     # odontograma sin pasar por un tratamiento.
@@ -63,7 +64,6 @@ class OdontogramaLesionApicalCreate(NumeroDienteValidoMixin):
     # en app/services/odontograma_logic.py, no aqui (requiere consultar la DB).
     raiz: str
     fecha: date
-    creado_por: UUID
 
 
 class OdontogramaLesionApicalRead(AuditRead):
@@ -90,7 +90,6 @@ class PuenteFijoCreate(BaseModel):
     visita_id: UUID | None = None
     estado_general: EstadoGeneralPuente
     fecha: date
-    creado_por: UUID
     dientes: list[PuenteFijoDienteCreate]
 
     @field_validator("dientes")

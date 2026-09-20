@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session, requerir_dra
+from app.deps import get_current_usuario, get_session, requerir_dra
+from app.models.usuario import Usuario
 from app.models.visita import Visita
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.visita import VisitaCreate, VisitaRead
@@ -19,10 +20,21 @@ router = APIRouter(tags=["visitas"], dependencies=[Depends(requerir_dra)])
 
 @router.post("/pacientes/{paciente_id}/visitas", response_model=VisitaRead, status_code=201)
 async def crear_visita(
-    paciente_id: UUID, datos: VisitaCreate, session: AsyncSession = Depends(get_session)
+    paciente_id: UUID,
+    datos: VisitaCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     await obtener_paciente_o_404(paciente_id, session)
-    visita = Visita(paciente_id=paciente_id, **datos.model_dump())
+    # responsable = el mismo dra autenticado hoy (unico rol con acceso a este
+    # endpoint) — si en el futuro un dra distinto atiende bajo la cuenta de
+    # otro usuario, este campo deja de alcanzar y hay que revisarlo.
+    visita = Visita(
+        paciente_id=paciente_id,
+        **datos.model_dump(),
+        responsable=usuario.id,
+        creado_por=usuario.id,
+    )
     session.add(visita)
     await session.commit()
     await session.refresh(visita)

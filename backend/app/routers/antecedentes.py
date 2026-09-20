@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session, requerir_dra
+from app.deps import get_current_usuario, get_session, requerir_dra
 from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.common import ahora
+from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.antecedente import (
     AntecedenteCreate,
@@ -62,6 +63,7 @@ async def registrar_antecedente_de_paciente(
     paciente_id: UUID,
     datos: PacienteAntecedenteUpsert,
     session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     """
     Crea o actualiza el estado de una categoria de antecedente para el
@@ -93,14 +95,14 @@ async def registrar_antecedente_de_paciente(
             antecedente_id=datos.antecedente_id,
             presente=datos.presente,
             detalle=datos.detalle,
-            creado_por=datos.creado_por,
+            creado_por=usuario.id,
         )
         session.add(fila)
     else:
         fila.presente = datos.presente
         fila.detalle = datos.detalle
         fila.actualizado_en = ahora()
-        fila.actualizado_por = datos.creado_por
+        fila.actualizado_por = usuario.id
 
     await session.commit()
     await session.refresh(fila)

@@ -8,8 +8,10 @@ from app.schemas.common import AuditRead
 
 
 class VisitaCreate(BaseModel):
+    # responsable y creado_por ya NO se aceptan del cliente (19/09/2026): el
+    # unico rol con acceso a este endpoint hoy es dra, asi que ambos se
+    # derivan del usuario autenticado (JWT) — ver "Nota" en visitas.py.
     fecha: date
-    responsable: UUID
     motivo_consulta: str | None = None
     examen_extraoral_atm: str | None = None
     examen_extraoral_ganglios: str | None = None
@@ -23,7 +25,6 @@ class VisitaCreate(BaseModel):
     examen_tomografia: bool = False
     examen_otras: str | None = None
     hallazgos: str | None = None
-    creado_por: UUID
 
 
 class VisitaRead(AuditRead):

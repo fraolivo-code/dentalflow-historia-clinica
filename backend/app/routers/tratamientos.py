@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session, requerir_dra
+from app.deps import get_current_usuario, get_session, requerir_dra
 from app.models.common import ahora
 from app.models.tratamiento import Tratamiento, TratamientoDiente
+from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.routers.profesionales_tratantes import obtener_profesional_tratante_o_404
 from app.schemas.tratamiento import TratamientoCreate, TratamientoRead, TratamientoUpdate
@@ -26,7 +27,10 @@ async def _leer_tratamiento_con_dientes(session: AsyncSession, tratamiento: Trat
 
 @router.post("/pacientes/{paciente_id}/tratamientos", response_model=TratamientoRead, status_code=201)
 async def crear_tratamiento(
-    paciente_id: UUID, datos: TratamientoCreate, session: AsyncSession = Depends(get_session)
+    paciente_id: UUID,
+    datos: TratamientoCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     await obtener_paciente_o_404(paciente_id, session)
     await obtener_profesional_tratante_o_404(datos.profesional_tratante_id, session)
@@ -41,7 +45,7 @@ async def crear_tratamiento(
         fecha_fin=datos.fecha_fin,
         profesional_tratante_id=datos.profesional_tratante_id,
         notas_relevantes=datos.notas_relevantes,
-        creado_por=datos.creado_por,
+        creado_por=usuario.id,
     )
     session.add(tratamiento)
     await session.flush()  # necesitamos tratamiento.id antes de crear los hijos
@@ -51,7 +55,7 @@ async def crear_tratamiento(
             TratamientoDiente(
                 tratamiento_id=tratamiento.id,
                 numero_diente=numero_diente,
-                creado_por=datos.creado_por,
+                creado_por=usuario.id,
             )
         )
 
@@ -81,18 +85,21 @@ async def obtener_tratamiento(tratamiento_id: UUID, session: AsyncSession = Depe
 
 @router.patch("/tratamientos/{tratamiento_id}", response_model=TratamientoRead)
 async def actualizar_tratamiento(
-    tratamiento_id: UUID, datos: TratamientoUpdate, session: AsyncSession = Depends(get_session)
+    tratamiento_id: UUID,
+    datos: TratamientoUpdate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     """Avance del ciclo de vida (indicado -> en_curso -> completado/suspendido)."""
     tratamiento = await session.get(Tratamiento, tratamiento_id)
     if tratamiento is None:
         raise HTTPException(404, "Tratamiento no encontrado")
 
-    cambios = datos.model_dump(exclude={"actualizado_por"}, exclude_unset=True)
+    cambios = datos.model_dump(exclude_unset=True)
     for campo, valor in cambios.items():
         setattr(tratamiento, campo, valor)
     tratamiento.actualizado_en = ahora()
-    tratamiento.actualizado_por = datos.actualizado_por
+    tratamiento.actualizado_por = usuario.id
 
     await session.commit()
     await session.refresh(tratamiento)

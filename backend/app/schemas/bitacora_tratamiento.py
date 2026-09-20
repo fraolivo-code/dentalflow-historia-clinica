@@ -8,9 +8,10 @@ from app.schemas.common import AuditRead
 
 
 class BitacoraTratamientoCreate(BaseModel):
+    # responsable y creado_por ya NO se aceptan del cliente (19/09/2026): este
+    # endpoint esta bloqueado a dra, se derivan del usuario autenticado (JWT).
     visita_id: UUID | None = None
     fecha: date
-    responsable: UUID
     descripcion: str
     numero_diente: int | None = None
     tratamiento_id: UUID | None = None
@@ -20,7 +21,6 @@ class BitacoraTratamientoCreate(BaseModel):
     # nuevo que registrar").
     tipo_hallazgo: TipoHallazgo | None = None
     superficie: SuperficieDental | None = None
-    creado_por: UUID
 
     @field_validator("numero_diente")
     @classmethod

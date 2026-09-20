@@ -12,7 +12,6 @@ class ObservacionCreate(BaseModel):
     tipo: TipoObservacion
     fecha: date
     texto: str
-    creado_por: UUID
 
 
 class ObservacionRead(AuditRead):

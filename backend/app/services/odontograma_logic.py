@@ -36,6 +36,7 @@ async def aplicar_hallazgo(
     paciente_id: UUID,
     numero_diente: int,
     datos: OdontogramaHallazgoCreate,
+    creado_por: UUID,
 ) -> OdontogramaHallazgo:
     """
     Crea un hallazgo aplicando las reglas de exclusividad de la seccion 3.3:
@@ -89,7 +90,7 @@ async def aplicar_hallazgo(
         origen=OrigenHallazgo.aqui,
         tratamiento_id=datos.tratamiento_id,
         notas=datos.notas,
-        creado_por=datos.creado_por,
+        creado_por=creado_por,
     )
     session.add(nuevo)
     await session.flush()  # inserta `nuevo` antes de que algo lo referencie
@@ -99,7 +100,7 @@ async def aplicar_hallazgo(
         existente.resuelto_fecha = datos.fecha
         existente.resuelto_por_hallazgo_id = nuevo.id
         existente.actualizado_en = ahora()
-        existente.actualizado_por = datos.creado_por
+        existente.actualizado_por = creado_por
 
     await session.commit()
     await session.refresh(nuevo)

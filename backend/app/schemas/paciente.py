@@ -7,11 +7,9 @@ from app.schemas.common import AuditRead
 
 
 class PacienteCreate(BaseModel):
-    # Correlativo generado por el sistema (Etapa 3, seccion 1). El formato y
-    # la generacion automatica del correlativo no estan definidos en ningun
-    # documento — por ahora el llamador debe proveerlo explicitamente, igual
-    # que ya se exige con creado_por (ver README, "Sin autenticacion todavia").
-    numero_historia: str
+    # numero_historia y creado_por ya NO se aceptan del cliente (19/09/2026):
+    # numero_historia se genera server-side (ver services/correlativos.py),
+    # creado_por se deriva del usuario autenticado (JWT), nunca del body.
     telefono_fijo: str | None = None
     movil: str
     nombre_completo: str
@@ -33,7 +31,6 @@ class PacienteCreate(BaseModel):
     # especificacion seccion 1.1, pendiente de credenciales de Cloudflare R2).
     documento_historia_anterior: str | None = None
     foto: str | None = None
-    creado_por: UUID
 
 
 class PacienteRead(AuditRead):

@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_session, requerir_dra
+from app.deps import get_current_usuario, get_session, requerir_dra
 from app.enums import NUMEROS_DIENTE_VALIDOS
 from app.models.odontograma import DienteAnatomia, OdontogramaHallazgo, OdontogramaLesionApical
+from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.odontograma import (
     DienteAnatomiaRead,
@@ -65,12 +66,13 @@ async def crear_hallazgo(
     numero_diente: int,
     datos: OdontogramaHallazgoCreate,
     session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     """Aplica un hallazgo respetando las reglas de exclusividad (3.3)."""
     if datos.numero_diente != numero_diente:
         raise HTTPException(400, "numero_diente del body no coincide con el de la URL")
     await obtener_paciente_o_404(paciente_id, session)
-    return await aplicar_hallazgo(session, paciente_id, numero_diente, datos)
+    return await aplicar_hallazgo(session, paciente_id, numero_diente, datos, usuario.id)
 
 
 @router.get(
@@ -104,6 +106,7 @@ async def crear_lesion_apical(
     numero_diente: int,
     datos: OdontogramaLesionApicalCreate,
     session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
 ):
     """
     Crea la lesion apical (1.3): valida la raiz contra diente_anatomia y
@@ -121,7 +124,7 @@ async def crear_lesion_apical(
         raiz=datos.raiz,
         tipo=tipo,
         fecha=datos.fecha,
-        creado_por=datos.creado_por,
+        creado_por=usuario.id,
     )
     session.add(lesion)
     await session.commit()
