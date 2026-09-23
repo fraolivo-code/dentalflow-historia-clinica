@@ -11,7 +11,7 @@ from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.bitacora_tratamiento import BitacoraTratamientoCreate, BitacoraTratamientoRead
 from app.schemas.odontograma import OdontogramaHallazgoCreate
-from app.services.odontograma_logic import aplicar_hallazgo
+from app.services.odontograma_logic import aplicar_hallazgo, buscar_duplicado_activo
 
 router = APIRouter(tags=["bitacora"], dependencies=[Depends(requerir_dra)])
 
@@ -30,6 +30,11 @@ async def crear_entrada_bitacora(
     crea automaticamente la fila correspondiente en odontograma_hallazgo
     (seccion 7 de la especificacion de formularios) reutilizando las mismas
     reglas de exclusividad de la Etapa 4 (aplicar_hallazgo).
+
+    Si el hallazgo ya existe activo e identico (mismo diente + tipo +
+    superficie), la entrada se guarda igual pero no se crea un hallazgo
+    duplicado, sin error: una sesion mas de un tratamiento multisesion no
+    debe bloquearse (confirmado 23/09/2026).
     """
     await obtener_paciente_o_404(paciente_id, session)
     if datos.tratamiento_id is not None:
@@ -53,7 +58,14 @@ async def crear_entrada_bitacora(
     await session.commit()
     await session.refresh(entrada)
 
-    if datos.numero_diente is not None and datos.tipo_hallazgo is not None:
+    if (
+        datos.numero_diente is not None
+        and datos.tipo_hallazgo is not None
+        and await buscar_duplicado_activo(
+            session, paciente_id, datos.numero_diente, datos.tipo_hallazgo, datos.superficie
+        )
+        is None
+    ):
         await aplicar_hallazgo(
             session,
             paciente_id,

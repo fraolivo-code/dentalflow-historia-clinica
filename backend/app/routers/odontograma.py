@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session, requerir_dra
 from app.enums import NUMEROS_DIENTE_VALIDOS
+from app.models.common import ahora
 from app.models.odontograma import DienteAnatomia, OdontogramaHallazgo, OdontogramaLesionApical
 from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
@@ -13,6 +14,7 @@ from app.schemas.odontograma import (
     DienteAnatomiaRead,
     OdontogramaHallazgoCreate,
     OdontogramaHallazgoRead,
+    OdontogramaHallazgoResolver,
     OdontogramaLesionApicalCreate,
     OdontogramaLesionApicalRead,
 )
@@ -73,6 +75,42 @@ async def crear_hallazgo(
         raise HTTPException(400, "numero_diente del body no coincide con el de la URL")
     await obtener_paciente_o_404(paciente_id, session)
     return await aplicar_hallazgo(session, paciente_id, numero_diente, datos, usuario.id)
+
+
+@router.patch(
+    "/pacientes/{paciente_id}/hallazgos/{hallazgo_id}/resolver",
+    response_model=OdontogramaHallazgoRead,
+)
+async def resolver_hallazgo(
+    paciente_id: UUID,
+    hallazgo_id: UUID,
+    datos: OdontogramaHallazgoResolver,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """
+    Cierre manual de un hallazgo activo (23/09/2026): resuelto=True con
+    fecha, sin borrar el historico. resuelto_por_hallazgo_id queda en NULL,
+    que es lo que distingue un cierre manual de un reemplazo por exclusividad.
+    """
+    hallazgo = await session.get(OdontogramaHallazgo, hallazgo_id)
+    # Un hallazgo de otro paciente responde igual que uno inexistente.
+    if hallazgo is None or hallazgo.paciente_id != paciente_id:
+        raise HTTPException(404, "Hallazgo no encontrado")
+    if hallazgo.resuelto:
+        raise HTTPException(409, "El hallazgo ya estaba resuelto")
+    if datos.fecha < hallazgo.fecha:
+        raise HTTPException(
+            422, "La fecha de resolucion no puede ser anterior a la fecha del hallazgo"
+        )
+
+    hallazgo.resuelto = True
+    hallazgo.resuelto_fecha = datos.fecha
+    hallazgo.actualizado_en = ahora()
+    hallazgo.actualizado_por = usuario.id
+    await session.commit()
+    await session.refresh(hallazgo)
+    return hallazgo
 
 
 @router.get(

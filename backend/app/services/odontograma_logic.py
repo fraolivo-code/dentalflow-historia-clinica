@@ -11,10 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.enums import (
     CONDICION_INDIVIDUAL_PUENTE_VALIDAS,
+    GRUPO_CONDICION,
     GRUPO_ENDO,
     GRUPO_EXCLUSIVE,
     CondicionIndividualPuente,
     OrigenHallazgo,
+    SuperficieDental,
     TipoHallazgo,
     TipoLesionApical,
 )
@@ -28,7 +30,35 @@ def grupo_de(tipo: TipoHallazgo) -> str:
         return "exclusive"
     if tipo in GRUPO_ENDO:
         return "endo"
+    if tipo in GRUPO_CONDICION:
+        return "condicion"
     return "independent"
+
+
+async def buscar_duplicado_activo(
+    session: AsyncSession,
+    paciente_id: UUID,
+    numero_diente: int,
+    tipo: TipoHallazgo,
+    superficie: SuperficieDental | None,
+) -> OdontogramaHallazgo | None:
+    """
+    Hallazgo activo identico (mismo diente + tipo + superficie) al que se
+    quiere crear, o None (23/09/2026). superficie se compara con
+    IS NOT DISTINCT FROM, asi dos superficies NULL cuentan como iguales.
+    """
+    resultado = await session.execute(
+        select(OdontogramaHallazgo)
+        .where(
+            OdontogramaHallazgo.paciente_id == paciente_id,
+            OdontogramaHallazgo.numero_diente == numero_diente,
+            OdontogramaHallazgo.tipo_hallazgo == tipo,
+            OdontogramaHallazgo.superficie.is_not_distinct_from(superficie),
+            OdontogramaHallazgo.resuelto.is_(False),
+        )
+        .limit(1)
+    )
+    return resultado.scalar_one_or_none()
 
 
 async def aplicar_hallazgo(
@@ -43,6 +73,11 @@ async def aplicar_hallazgo(
     - exclusive desactiva cualquier otro hallazgo activo del diente.
     - endo desactiva los demas endo activos, pero no los independent.
     - independent (y endo) desactivan cualquier exclusive activo.
+    - condicion (diastema) no desactiva nada, y ningun hallazgo nuevo la
+      desactiva a ella — ni siquiera un exclusive.
+
+    Si ya existe un hallazgo activo identico (buscar_duplicado_activo),
+    responde 409 sin crear ni cerrar nada.
 
     "Desactivar" = resuelto=True (cierra el hallazgo sin borrar el historico,
     seccion 1.2), nunca DELETE. Ademas registra resuelto_fecha y
@@ -54,6 +89,22 @@ async def aplicar_hallazgo(
     solo — si no se fuerza el orden, el UPDATE puede viajar antes que el
     INSERT y Postgres lo rechaza (la fila referenciada todavia no existe).
     """
+    duplicado = await buscar_duplicado_activo(
+        session, paciente_id, numero_diente, datos.tipo_hallazgo, datos.superficie
+    )
+    if duplicado is not None:
+        detalle_superficie = f" ({duplicado.superficie.value})" if duplicado.superficie else ""
+        raise HTTPException(
+            409,
+            detail={
+                "mensaje": (
+                    f"El diente {numero_diente} ya tiene un hallazgo activo de "
+                    f"{datos.tipo_hallazgo.value}{detalle_superficie}"
+                ),
+                "hallazgo_existente_id": str(duplicado.id),
+            },
+        )
+
     grupo_nuevo = grupo_de(datos.tipo_hallazgo)
 
     resultado = await session.execute(
@@ -68,7 +119,8 @@ async def aplicar_hallazgo(
     a_desactivar = []
     for existente in activos:
         grupo_existente = grupo_de(existente.tipo_hallazgo)
-        debe_desactivar = (
+        # Un grupo_nuevo "condicion" no cumple ninguna rama: no cierra nada.
+        debe_desactivar = grupo_existente != "condicion" and (
             grupo_nuevo == "exclusive"
             or (grupo_nuevo == "endo" and grupo_existente in ("exclusive", "endo"))
             or (grupo_nuevo == "independent" and grupo_existente == "exclusive")

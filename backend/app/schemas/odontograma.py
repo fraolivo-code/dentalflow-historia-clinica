@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.enums import (
     CondicionIndividualPuente,
@@ -11,6 +11,7 @@ from app.enums import (
     SuperficieDental,
     TipoHallazgo,
     TipoLesionApical,
+    validar_superficie,
 )
 from app.schemas.common import AuditRead, NumeroDienteValidoMixin
 
@@ -36,6 +37,17 @@ class OdontogramaHallazgoCreate(NumeroDienteValidoMixin):
     # forma parte. None cuando se crea directo desde la pantalla del
     # odontograma sin pasar por un tratamiento.
     tratamiento_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def _validar_superficie(self) -> "OdontogramaHallazgoCreate":
+        validar_superficie(self.tipo_hallazgo, self.superficie)
+        return self
+
+
+class OdontogramaHallazgoResolver(BaseModel):
+    """Cierre manual de un hallazgo (PATCH .../resolver, 23/09/2026)."""
+
+    fecha: date
 
 
 class OdontogramaHallazgoRead(AuditRead):

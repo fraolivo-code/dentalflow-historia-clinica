@@ -64,6 +64,8 @@ class TipoHallazgo(str, enum.Enum):
     carilla_ok = "carilla_ok"
     carilla_defecto = "carilla_defecto"
     afraccion = "afraccion"
+    # Agregado 23/09/2026 (migracion 0007). Grupo "condicion".
+    diastema = "diastema"
 
 
 # Grupos de exclusividad (seccion 1.2 / 3.3). Logica de aplicacion, no de la
@@ -76,7 +78,11 @@ GRUPO_ENDO = {
     TipoHallazgo.conducto_perno_defecto,
     TipoHallazgo.conducto_indicado,
 }
-# Todo lo que no esta en GRUPO_EXCLUSIVE ni GRUPO_ENDO pertenece a "independent".
+# "condicion" (23/09/2026): compatible con cualquier otro grupo, incluido
+# exclusive — no cierra nada y ningun hallazgo nuevo lo cierra.
+GRUPO_CONDICION = {TipoHallazgo.diastema}
+# Todo lo que no esta en GRUPO_EXCLUSIVE, GRUPO_ENDO ni GRUPO_CONDICION
+# pertenece a "independent".
 
 # Subconjunto valido de tipo_hallazgo para puente_fijo_diente.condicion_individual
 # (seccion 1.4): sano, los 5 estados de endo, implante, ausente. Fuente unica
@@ -125,6 +131,33 @@ class SuperficieDental(str, enum.Enum):
     oclusal = "oclusal"
     vestibular = "vestibular"
     cervical = "cervical"
+
+
+# Tipos de hallazgo que exigen superficie, y cuales admiten (23/09/2026).
+# Los tipos que no aparecen aqui siguen con superficie opcional y sin validar.
+SUPERFICIES_POR_TIPO: dict[TipoHallazgo, frozenset[SuperficieDental]] = {
+    TipoHallazgo.caries: frozenset(SuperficieDental),
+    TipoHallazgo.obturacion_ok: frozenset(SuperficieDental),
+    TipoHallazgo.obturacion_defecto: frozenset(SuperficieDental),
+    TipoHallazgo.diastema: frozenset({SuperficieDental.mesial, SuperficieDental.distal}),
+}
+
+
+def validar_superficie(tipo: TipoHallazgo, superficie: SuperficieDental | None) -> None:
+    """
+    Lanza ValueError si la superficie no corresponde al tipo de hallazgo.
+    Vive aqui (y no en odontograma_logic) porque la usan los schemas de
+    request, que no pueden importar el servicio sin crear un import circular;
+    como ValueError dentro de un validator de Pydantic, termina en un 422.
+    """
+    permitidas = SUPERFICIES_POR_TIPO.get(tipo)
+    if permitidas is None:
+        return
+    if superficie is None:
+        raise ValueError(f"{tipo.value} requiere superficie")
+    if superficie not in permitidas:
+        opciones = " o ".join(sorted(s.value for s in permitidas))
+        raise ValueError(f"{tipo.value} solo admite superficie {opciones}")
 
 
 class TipoLesionApical(str, enum.Enum):

@@ -1,9 +1,14 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from app.enums import NUMEROS_DIENTE_VALIDOS, SuperficieDental, TipoHallazgo
+from app.enums import (
+    NUMEROS_DIENTE_VALIDOS,
+    SuperficieDental,
+    TipoHallazgo,
+    validar_superficie,
+)
 from app.schemas.common import AuditRead
 
 
@@ -28,6 +33,14 @@ class BitacoraTratamientoCreate(BaseModel):
         if v is not None and v not in NUMEROS_DIENTE_VALIDOS:
             raise ValueError(f"{v} no es un numero de diente valido (notacion FDI)")
         return v
+
+    @model_validator(mode="after")
+    def _validar_superficie(self) -> "BitacoraTratamientoCreate":
+        # Misma regla que OdontogramaHallazgoCreate, validada al recibir el
+        # request: asi nunca se guarda la entrada con un hallazgo invalido.
+        if self.tipo_hallazgo is not None:
+            validar_superficie(self.tipo_hallazgo, self.superficie)
+        return self
 
 
 class BitacoraTratamientoRead(AuditRead):
