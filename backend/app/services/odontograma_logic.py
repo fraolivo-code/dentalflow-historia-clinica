@@ -21,8 +21,18 @@ from app.enums import (
     TipoLesionApical,
 )
 from app.models.common import ahora
-from app.models.odontograma import DienteAnatomia, OdontogramaHallazgo, OdontogramaLesionApical
-from app.schemas.odontograma import OdontogramaHallazgoCreate
+from app.models.odontograma import (
+    DienteAnatomia,
+    OdontogramaHallazgo,
+    OdontogramaLesionApical,
+    PuenteFijo,
+    PuenteFijoDiente,
+)
+from app.schemas.odontograma import OdontogramaHallazgoCreate, PuenteFijoDienteCreate
+
+# Grupos cuyo hallazgo describe el estado del diente entero: dentro de un
+# puente activo ese estado lo define condicion_individual (24/09/2026).
+GRUPOS_DEFINIDOS_POR_PUENTE = GRUPO_EXCLUSIVE | GRUPO_ENDO
 
 
 def grupo_de(tipo: TipoHallazgo) -> str:
@@ -108,6 +118,20 @@ async def aplicar_hallazgo(
                 "hallazgo_existente_id": str(duplicado.id),
             },
         )
+
+    if datos.tipo_hallazgo in GRUPOS_DEFINIDOS_POR_PUENTE:
+        puente = await buscar_puente_activo_de_diente(session, paciente_id, numero_diente)
+        if puente is not None:
+            raise HTTPException(
+                409,
+                detail={
+                    "mensaje": (
+                        f"El diente {numero_diente} forma parte de un puente activo: "
+                        "su estado se define en el puente"
+                    ),
+                    "puente_existente_id": str(puente.id),
+                },
+            )
 
     grupo_nuevo = grupo_de(datos.tipo_hallazgo)
 
@@ -338,3 +362,115 @@ def validar_contiguidad_puente(numeros_diente: list[int]) -> None:
                 "Los dientes del puente deben ser anatomicamente contiguos, sin saltos "
                 "(falta un diente pilar o pontico en una posicion intermedia)",
             )
+
+
+async def buscar_puente_activo_de_diente(
+    session: AsyncSession, paciente_id: UUID, numero_diente: int
+) -> PuenteFijo | None:
+    """Puente activo (resuelto=False) del que forma parte el diente, o None."""
+    resultado = await session.execute(
+        select(PuenteFijo)
+        .join(PuenteFijoDiente, PuenteFijoDiente.puente_id == PuenteFijo.id)
+        .where(
+            PuenteFijo.paciente_id == paciente_id,
+            PuenteFijo.resuelto.is_(False),
+            PuenteFijoDiente.numero_diente == numero_diente,
+        )
+        .limit(1)
+    )
+    return resultado.scalar_one_or_none()
+
+
+def _secuencia(numeros: list[int]) -> str:
+    return "-".join(str(n) for n in sorted(numeros, key=orden_anatomico))
+
+
+async def validar_puente_sin_solapamiento(
+    session: AsyncSession, paciente_id: UUID, numeros_diente: list[int]
+) -> None:
+    """
+    Un diente no puede estar en dos puentes activos a la vez (24/09/2026).
+    Responde 409 con el primer puente en conflicto y los dientes compartidos.
+    """
+    resultado = await session.execute(
+        select(PuenteFijoDiente.puente_id, PuenteFijoDiente.numero_diente)
+        .join(PuenteFijo, PuenteFijo.id == PuenteFijoDiente.puente_id)
+        .where(
+            PuenteFijo.paciente_id == paciente_id,
+            PuenteFijo.resuelto.is_(False),
+            PuenteFijoDiente.numero_diente.in_(numeros_diente),
+        )
+    )
+    filas = resultado.all()
+    if not filas:
+        return
+    puente_id = filas[0].puente_id
+    en_conflicto = [f.numero_diente for f in filas if f.puente_id == puente_id]
+    todos = await session.execute(
+        select(PuenteFijoDiente.numero_diente).where(PuenteFijoDiente.puente_id == puente_id)
+    )
+    dientes_existente = sorted(todos.scalars().all(), key=orden_anatomico)
+    sujeto = (
+        f"El diente {en_conflicto[0]} ya esta"
+        if len(en_conflicto) == 1
+        else f"Los dientes {', '.join(str(n) for n in sorted(en_conflicto, key=orden_anatomico))} ya estan"
+    )
+    raise HTTPException(
+        409,
+        detail={
+            "mensaje": f"{sujeto} en otro puente activo ({_secuencia(dientes_existente)})",
+            "puente_existente_id": str(puente_id),
+            "dientes": dientes_existente,
+        },
+    )
+
+
+async def validar_hallazgos_bloqueantes_puente(
+    session: AsyncSession, paciente_id: UUID, dientes: list[PuenteFijoDienteCreate]
+) -> None:
+    """
+    Opcion A (24/09/2026): no se arma un puente sobre un diente con un
+    hallazgo activo de estado (exclusive) o endo — la Dra. lo resuelve
+    primero. No bloquea el que coincide con la condicion elegida para ese
+    diente (p. ej. "ausente" en un pontico): no hay contradiccion. Los
+    independent y "condicion" (diastema) nunca bloquean.
+    Responde 409 con TODOS los bloqueos, no solo el primero.
+    """
+    condicion_por_diente = {d.numero_diente: d.condicion_individual.value for d in dientes}
+    resultado = await session.execute(
+        select(OdontogramaHallazgo).where(
+            OdontogramaHallazgo.paciente_id == paciente_id,
+            OdontogramaHallazgo.numero_diente.in_(list(condicion_por_diente)),
+            OdontogramaHallazgo.resuelto.is_(False),
+            OdontogramaHallazgo.tipo_hallazgo.in_(GRUPOS_DEFINIDOS_POR_PUENTE),
+        )
+    )
+    bloqueos = sorted(
+        (
+            h
+            for h in resultado.scalars().all()
+            if h.tipo_hallazgo.value != condicion_por_diente[h.numero_diente]
+        ),
+        key=lambda h: orden_anatomico(h.numero_diente),
+    )
+    if not bloqueos:
+        return
+    detalle = "; ".join(
+        f"diente {h.numero_diente}, {h.tipo_hallazgo.value} (desde {h.fecha.strftime('%d/%m/%Y')})"
+        for h in bloqueos
+    )
+    raise HTTPException(
+        409,
+        detail={
+            "mensaje": f"No se puede armar el puente. Resuelva primero: {detalle}",
+            "bloqueos": [
+                {
+                    "numero_diente": h.numero_diente,
+                    "hallazgo_id": str(h.id),
+                    "tipo_hallazgo": h.tipo_hallazgo.value,
+                    "fecha": h.fecha.isoformat(),
+                }
+                for h in bloqueos
+            ],
+        },
+    )

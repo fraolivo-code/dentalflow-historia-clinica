@@ -106,6 +106,24 @@ class PuenteFijoDienteCreate(NumeroDienteValidoMixin):
     # se restringe ya en el schema, no solo en el servicio o el CHECK de la DB.
     condicion_individual: CondicionIndividualPuente
 
+    @model_validator(mode="after")
+    def _validar_rol_condicion(self) -> "PuenteFijoDienteCreate":
+        """
+        Capa 1 de la regla rol <-> condicion (24/09/2026): un pontico es un
+        diente ausente por definicion, y un pilar nunca lo es. Capa 3: el
+        CHECK ck_puente_fijo_diente_rol_condicion (migracion 0009).
+        """
+        es_ausente = self.condicion_individual == CondicionIndividualPuente.ausente
+        if self.rol == RolDientePuente.pontico and not es_ausente:
+            raise ValueError(
+                f"El diente {self.numero_diente} es pontico: su condicion debe ser 'ausente'"
+            )
+        if self.rol == RolDientePuente.pilar and es_ausente:
+            raise ValueError(
+                f"El diente {self.numero_diente} es pilar: su condicion no puede ser 'ausente'"
+            )
+        return self
+
 
 class PuenteFijoCreate(BaseModel):
     visita_id: UUID | None = None
@@ -119,6 +137,12 @@ class PuenteFijoCreate(BaseModel):
         if len(v) < 2:
             raise ValueError("Un puente fijo necesita al menos 2 dientes")
         return v
+
+
+class PuenteFijoResolver(BaseModel):
+    """Cierre de un puente (PATCH .../puentes/{id}/resolver, 24/09/2026)."""
+
+    fecha: date
 
 
 class PuenteFijoDienteRead(AuditRead):
@@ -139,6 +163,8 @@ class PuenteFijoRead(AuditRead):
     visita_id: UUID | None
     estado_general: EstadoGeneralPuente
     fecha: date
+    resuelto: bool
+    resuelto_fecha: date | None
     # En orden anatomico real (seccion 3.2), no numerico ascendente — se
     # ordena en el router antes de construir esta respuesta.
     dientes: list[PuenteFijoDienteRead]

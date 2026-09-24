@@ -134,7 +134,11 @@ class OdontogramaLesionApical(Base, UUIDPk, AuditMixin):
 
 
 class PuenteFijo(Base, UUIDPk, AuditMixin):
-    """1.4 — Un puente es una relacion entre varios dientes."""
+    """
+    1.4 — Un puente es una relacion entre varios dientes. Se cierra sin
+    borrarse (resuelto=True, migracion 0009); mientras esta activo, la
+    condicion de cada diente se define aqui y no en odontograma_hallazgo.
+    """
 
     __tablename__ = "puente_fijo"
 
@@ -148,6 +152,8 @@ class PuenteFijo(Base, UUIDPk, AuditMixin):
         Enum(EstadoGeneralPuente, name="estado_general_puente", native_enum=True), nullable=False
     )
     fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    resuelto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    resuelto_fecha: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class PuenteFijoDiente(Base, UUIDPk, AuditMixin):
@@ -180,5 +186,10 @@ class PuenteFijoDiente(Base, UUIDPk, AuditMixin):
             "'conducto_defecto','conducto_perno_defecto','conducto_indicado'"
             ")",
             name="ck_puente_fijo_diente_condicion_individual",
+        ),
+        # Regla rol <-> condicion (24/09/2026, migracion 0009).
+        CheckConstraint(
+            "(rol = 'pontico') = (condicion_individual = 'ausente')",
+            name="ck_puente_fijo_diente_rol_condicion",
         ),
     )
