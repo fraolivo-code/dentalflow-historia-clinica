@@ -21,7 +21,7 @@ from app.enums import (
     TipoLesionApical,
 )
 from app.models.common import ahora
-from app.models.odontograma import DienteAnatomia, OdontogramaHallazgo
+from app.models.odontograma import DienteAnatomia, OdontogramaHallazgo, OdontogramaLesionApical
 from app.schemas.odontograma import OdontogramaHallazgoCreate
 
 
@@ -78,6 +78,10 @@ async def aplicar_hallazgo(
 
     Si ya existe un hallazgo activo identico (buscar_duplicado_activo),
     responde 409 sin crear ni cerrar nada.
+
+    Lesiones apicales (23/09/2026, cerrar_lesiones_por_hallazgo): son
+    independientes de la exclusividad, salvo que el diente pierda la raiz
+    natural o el implante — ver esa funcion.
 
     "Desactivar" = resuelto=True (cierra el hallazgo sin borrar el historico,
     seccion 1.2), nunca DELETE. Ademas registra resuelto_fecha y
@@ -154,9 +158,79 @@ async def aplicar_hallazgo(
         existente.actualizado_en = ahora()
         existente.actualizado_por = creado_por
 
+    await cerrar_lesiones_por_hallazgo(
+        session,
+        paciente_id,
+        numero_diente,
+        nuevo,
+        cierra_implante=any(h.tipo_hallazgo == TipoHallazgo.implante for h in a_desactivar),
+        creado_por=creado_por,
+    )
+
     await session.commit()
     await session.refresh(nuevo)
     return nuevo
+
+
+async def cerrar_lesiones_por_hallazgo(
+    session: AsyncSession,
+    paciente_id: UUID,
+    numero_diente: int,
+    nuevo: OdontogramaHallazgo,
+    cierra_implante: bool,
+    creado_por: UUID,
+) -> None:
+    """
+    Cierre automatico de lesiones apicales (opcion A, confirmada 23/09/2026),
+    en la misma transaccion que el hallazgo nuevo:
+    - "ausente" cierra todas las lesiones activas del diente (periapicales y
+      periimplantitis: ya no hay ni raiz ni implante).
+    - "implante" cierra las periapicales (el diente ya no tiene raiz natural).
+    - Si el hallazgo nuevo cierra un "implante" activo (por exclusividad),
+      se cierra tambien la periimplantitis.
+    Ningun otro hallazgo toca las lesiones — "sano" o un endo no las cierran.
+    """
+    tipos_a_cerrar: set[TipoLesionApical] = set()
+    if nuevo.tipo_hallazgo == TipoHallazgo.ausente:
+        tipos_a_cerrar = {TipoLesionApical.periapical, TipoLesionApical.periimplantitis}
+    elif nuevo.tipo_hallazgo == TipoHallazgo.implante:
+        tipos_a_cerrar = {TipoLesionApical.periapical}
+    if cierra_implante:
+        tipos_a_cerrar.add(TipoLesionApical.periimplantitis)
+    if not tipos_a_cerrar:
+        return
+
+    resultado = await session.execute(
+        select(OdontogramaLesionApical).where(
+            OdontogramaLesionApical.paciente_id == paciente_id,
+            OdontogramaLesionApical.numero_diente == numero_diente,
+            OdontogramaLesionApical.resuelto.is_(False),
+            OdontogramaLesionApical.tipo.in_(tipos_a_cerrar),
+        )
+    )
+    for lesion in resultado.scalars().all():
+        lesion.resuelto = True
+        lesion.resuelto_fecha = nuevo.fecha
+        lesion.resuelto_por_hallazgo_id = nuevo.id
+        lesion.actualizado_en = ahora()
+        lesion.actualizado_por = creado_por
+
+
+async def buscar_lesion_duplicada_activa(
+    session: AsyncSession, paciente_id: UUID, numero_diente: int, raiz: str
+) -> OdontogramaLesionApical | None:
+    """Lesion activa en el mismo diente y la misma raiz (23/09/2026)."""
+    resultado = await session.execute(
+        select(OdontogramaLesionApical)
+        .where(
+            OdontogramaLesionApical.paciente_id == paciente_id,
+            OdontogramaLesionApical.numero_diente == numero_diente,
+            OdontogramaLesionApical.raiz == raiz,
+            OdontogramaLesionApical.resuelto.is_(False),
+        )
+        .limit(1)
+    )
+    return resultado.scalar_one_or_none()
 
 
 async def resolver_tipo_lesion_apical(

@@ -17,8 +17,13 @@ from app.schemas.odontograma import (
     OdontogramaHallazgoResolver,
     OdontogramaLesionApicalCreate,
     OdontogramaLesionApicalRead,
+    OdontogramaLesionApicalResolver,
 )
-from app.services.odontograma_logic import aplicar_hallazgo, resolver_tipo_lesion_apical
+from app.services.odontograma_logic import (
+    aplicar_hallazgo,
+    buscar_lesion_duplicada_activa,
+    resolver_tipo_lesion_apical,
+)
 
 router = APIRouter(tags=["odontograma"], dependencies=[Depends(requerir_dra)])
 
@@ -155,6 +160,20 @@ async def crear_lesion_apical(
     await obtener_paciente_o_404(paciente_id, session)
     tipo = await resolver_tipo_lesion_apical(session, paciente_id, numero_diente, datos.raiz)
 
+    duplicada = await buscar_lesion_duplicada_activa(
+        session, paciente_id, numero_diente, datos.raiz
+    )
+    if duplicada is not None:
+        raise HTTPException(
+            409,
+            detail={
+                "mensaje": (
+                    f"El diente {numero_diente} ya tiene una lesion activa en la raiz {datos.raiz}"
+                ),
+                "lesion_existente_id": str(duplicada.id),
+            },
+        )
+
     lesion = OdontogramaLesionApical(
         paciente_id=paciente_id,
         numero_diente=numero_diente,
@@ -162,9 +181,63 @@ async def crear_lesion_apical(
         raiz=datos.raiz,
         tipo=tipo,
         fecha=datos.fecha,
+        resuelto=False,
         creado_por=usuario.id,
     )
     session.add(lesion)
+    await session.commit()
+    await session.refresh(lesion)
+    return lesion
+
+
+@router.get(
+    "/pacientes/{paciente_id}/lesiones-apicales",
+    response_model=list[OdontogramaLesionApicalRead],
+)
+async def listar_lesiones_apicales_activas(
+    paciente_id: UUID, session: AsyncSession = Depends(get_session)
+):
+    """Lesiones apicales activas de todos los dientes, en un solo pedido (23/09/2026)."""
+    await obtener_paciente_o_404(paciente_id, session)
+    resultado = await session.execute(
+        select(OdontogramaLesionApical).where(
+            OdontogramaLesionApical.paciente_id == paciente_id,
+            OdontogramaLesionApical.resuelto.is_(False),
+        )
+    )
+    return resultado.scalars().all()
+
+
+@router.patch(
+    "/pacientes/{paciente_id}/lesiones-apicales/{lesion_id}/resolver",
+    response_model=OdontogramaLesionApicalRead,
+)
+async def resolver_lesion_apical(
+    paciente_id: UUID,
+    lesion_id: UUID,
+    datos: OdontogramaLesionApicalResolver,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """
+    Cierre manual de una lesion apical activa (23/09/2026): mismo patron que
+    PATCH .../hallazgos/{id}/resolver — resuelto=True con fecha, sin borrar.
+    """
+    lesion = await session.get(OdontogramaLesionApical, lesion_id)
+    # Una lesion de otro paciente responde igual que una inexistente.
+    if lesion is None or lesion.paciente_id != paciente_id:
+        raise HTTPException(404, "Lesion apical no encontrada")
+    if lesion.resuelto:
+        raise HTTPException(409, "La lesion apical ya estaba resuelta")
+    if datos.fecha < lesion.fecha:
+        raise HTTPException(
+            422, "La fecha de resolucion no puede ser anterior a la fecha de la lesion"
+        )
+
+    lesion.resuelto = True
+    lesion.resuelto_fecha = datos.fecha
+    lesion.actualizado_en = ahora()
+    lesion.actualizado_por = usuario.id
     await session.commit()
     await session.refresh(lesion)
     return lesion

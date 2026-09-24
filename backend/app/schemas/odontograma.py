@@ -88,6 +88,15 @@ class OdontogramaLesionApicalRead(AuditRead):
     raiz: str
     tipo: TipoLesionApical
     fecha: date
+    resuelto: bool
+    resuelto_fecha: date | None
+    resuelto_por_hallazgo_id: UUID | None
+
+
+class OdontogramaLesionApicalResolver(BaseModel):
+    """Cierre manual de una lesion apical (PATCH .../resolver, 23/09/2026)."""
+
+    fecha: date
 
 
 class PuenteFijoDienteCreate(NumeroDienteValidoMixin):

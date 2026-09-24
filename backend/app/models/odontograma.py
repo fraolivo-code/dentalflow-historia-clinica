@@ -97,6 +97,9 @@ class OdontogramaLesionApical(Base, UUIDPk, AuditMixin):
     """
     1.3 — Lesion periapical / periimplantitis, independiente de
     odontograma_hallazgo. Se combina con cualquier estado, incluido "sano".
+    Unica excepcion (23/09/2026): cargar "implante" o "ausente" cierra las
+    periapicales del diente, y cerrar el implante cierra la periimplantitis
+    (ver aplicar_hallazgo).
     """
 
     __tablename__ = "odontograma_lesion_apical"
@@ -119,6 +122,15 @@ class OdontogramaLesionApical(Base, UUIDPk, AuditMixin):
         Enum(TipoLesionApical, name="tipo_lesion_apical", native_enum=True), nullable=False
     )
     fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    # 23/09/2026 (migracion 0008): mismo patron que odontograma_hallazgo —
+    # cerrar sin borrar el historico. resuelto_por_hallazgo_id queda NULL en
+    # un cierre manual (PATCH .../resolver) y apunta al hallazgo que lo
+    # provoco en un cierre automatico (implante/ausente).
+    resuelto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    resuelto_fecha: Mapped[date | None] = mapped_column(Date, nullable=True)
+    resuelto_por_hallazgo_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("odontograma_hallazgo.id"), nullable=True
+    )
 
 
 class PuenteFijo(Base, UUIDPk, AuditMixin):
