@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Prueba de PDF</title>
+<style>
+  /* Fuentes de marca desde app/static/fonts (base_url del render). */
+  @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; src: url("fonts/inter/Inter-Regular.ttf"); }
+  @font-face { font-family: "Inter"; font-weight: 400; font-style: italic; src: url("fonts/inter/Inter-Italic.ttf"); }
+  @font-face { font-family: "Inter"; font-weight: 500; font-style: normal; src: url("fonts/inter/Inter-Medium.ttf"); }
+  @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; src: url("fonts/inter/Inter-SemiBold.ttf"); }
+  @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; src: url("fonts/inter/Inter-Bold.ttf"); }
+  @font-face { font-family: "Fraunces"; font-weight: 400; font-style: normal; src: url("fonts/fraunces/Fraunces72pt-Regular.ttf"); }
+  @font-face { font-family: "Fraunces"; font-weight: 400; font-style: italic; src: url("fonts/fraunces/Fraunces72pt-Italic.ttf"); }
+  @font-face { font-family: "Fraunces"; font-weight: 600; font-style: normal; src: url("fonts/fraunces/Fraunces72pt-SemiBold.ttf"); }
+
+  @page { size: A4; margin: 2cm; }
+  body { font-family: "Inter", sans-serif; font-size: 11pt; color: #333333; line-height: 1.5; }
+  h1 { font-family: "Fraunces", serif; font-weight: 600; font-size: 26pt; color: #1A2C23; margin: 0 0 4pt; }
+  .fecha { color: #66806F; margin: 0 0 18pt; }
+  .paciente { font-weight: 600; color: #5B3E63; }
+</style>
+</head>
+<body>
+  <h1>Prueba de documento</h1>
+  <p class="fecha">{{ fecha }}</p>
+  <p>Paciente: <span class="paciente">{{ nombre_paciente }}</span></p>
+  <p>
+    Este párrafo está compuesto en Inter y el título en Fraunces, las dos
+    fuentes de marca. Sirve para comprobar que el servidor genera el PDF con
+    las fuentes incluidas en el proyecto y no con una genérica del sistema:
+    áéíóú ñ Ñ ü ¿? ¡! — «comillas» · 0123456789.
+  </p>
+  <p><em>Inter en cursiva</em> y <strong>Inter en negrita</strong>.</p>
+</body>
+</html>

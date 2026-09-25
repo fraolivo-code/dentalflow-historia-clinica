@@ -9,6 +9,7 @@ from app.routers import (
     observaciones,
     odontograma,
     pacientes,
+    pdf,
     periodontograma,
     profesionales_tratantes,
     puentes,
@@ -41,6 +42,7 @@ app.include_router(profesionales_tratantes.router)
 app.include_router(tratamientos.router)
 app.include_router(bitacora.router)
 app.include_router(observaciones.router)
+app.include_router(pdf.router)
 
 
 @app.get("/health", tags=["health"])

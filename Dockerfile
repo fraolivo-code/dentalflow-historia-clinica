@@ -1,6 +1,13 @@
 # Historia Clinica Digital — Fase 2. Imagen de la API (FastAPI + Alembic).
 FROM python:3.12-slim
 
+# WeasyPrint (PDF) necesita Pango/HarfBuzz del sistema; fontconfig resuelve
+# las fuentes. Va antes de copiar el codigo para que Docker reuse esta capa.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fontconfig \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY backend/requirements.txt .
