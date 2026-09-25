@@ -6,6 +6,7 @@ from app.routers import (
     auth,
     bitacora,
     consentimientos,
+    constancias_asistencia,
     observaciones,
     odontograma,
     pacientes,
@@ -37,6 +38,7 @@ app.include_router(odontograma.router)
 app.include_router(puentes.router)
 app.include_router(periodontograma.router)
 app.include_router(consentimientos.router)
+app.include_router(constancias_asistencia.router)
 app.include_router(antecedentes.router)
 app.include_router(profesionales_tratantes.router)
 app.include_router(tratamientos.router)

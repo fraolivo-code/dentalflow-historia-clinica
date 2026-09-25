@@ -5,6 +5,7 @@
 from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
+from app.models.constancia_asistencia import ConstanciaAsistencia
 from app.models.observacion import Observacion
 from app.models.odontograma import (
     DienteAnatomia,
@@ -24,6 +25,7 @@ __all__ = [
     "Antecedente",
     "BitacoraTratamiento",
     "Consentimiento",
+    "ConstanciaAsistencia",
     "DienteAnatomia",
     "Observacion",
     "OdontogramaHallazgo",

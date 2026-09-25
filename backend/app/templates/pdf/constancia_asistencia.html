@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Constancia de asistencia</title>
+<style>
+  {% include "_fuentes.css" %}
+
+  /* Tokens de marca (tokens.css del frontend). */
+  :root {
+    --primario: #1A2C23;
+    --acento: #5B3E63;
+    --texto: #333333;
+    --secundario: #66806F;
+    --borde: #D8DED9;
+  }
+
+  @page { size: A4; margin: 2.2cm 2.4cm 2cm; }
+  body { font-family: "Inter", sans-serif; font-size: 11.5pt; color: var(--texto); line-height: 1.7; margin: 0; }
+
+  .membrete { border-bottom: 1.5pt solid var(--acento); padding-bottom: 10pt; margin-bottom: 44pt; }
+  .membrete-nombre { font-family: "Fraunces", serif; font-weight: 600; font-size: 20pt; color: var(--primario); line-height: 1.2; margin: 0; }
+  .membrete-detalle { font-size: 9.5pt; color: var(--secundario); margin: 2pt 0 0; line-height: 1.4; }
+
+  h1 { font-family: "Fraunces", serif; font-weight: 600; font-size: 22pt; color: var(--primario); text-align: center; margin: 0 0 32pt; }
+
+  .cuerpo p { text-align: justify; margin: 0 0 14pt; }
+  .cuerpo strong { font-weight: 600; color: var(--primario); }
+  .adicional { white-space: pre-line; }
+
+  .firma { margin-top: 90pt; text-align: center; page-break-inside: avoid; }
+  .firma-linea { width: 62%; margin: 0 auto 6pt; border-top: 0.75pt solid var(--texto); }
+  .firma-nombre { font-weight: 600; color: var(--primario); margin: 0; line-height: 1.4; }
+  .firma-detalle { font-size: 9.5pt; color: var(--secundario); margin: 0; line-height: 1.4; }
+</style>
+</head>
+<body>
+  <header class="membrete">
+    <p class="membrete-nombre">{{ profesional.nombre }}</p>
+    <p class="membrete-detalle">
+      {{ profesional.especialidad or "Odontología" }}
+      {%- if profesional.numero_colegiatura %} · N.° de colegiatura {{ profesional.numero_colegiatura }}{% endif %}
+    </p>
+  </header>
+
+  <h1>Constancia de asistencia</h1>
+
+  <section class="cuerpo">
+    <p>
+      Por medio de la presente se hace constar que <strong>{{ paciente_nombre }}</strong>
+      asistió a consulta odontológica el día <strong>{{ fecha_visita | fecha_larga }}</strong>
+      {%- if hora_inicio and hora_fin %}, en el horario comprendido entre las {{ hora_inicio | hora_12 }} y las {{ hora_fin | hora_12 }}
+      {%- elif hora_inicio %}, a partir de las {{ hora_inicio | hora_12 }}
+      {%- elif hora_fin %}, hasta las {{ hora_fin | hora_12 }}
+      {#- Si termina en hora, el punto de "a. m./p. m." cierra la oracion (RAE). #}
+      {%- else %}.
+      {%- endif %}
+    </p>
+    {% if texto_adicional %}
+    <p class="adicional">{{ texto_adicional }}</p>
+    {% endif %}
+    <p>
+      Constancia que se expide a solicitud de la parte interesada, en {{ ciudad }},
+      el {{ fecha_emision | fecha_larga }}.
+    </p>
+  </section>
+
+  <footer class="firma">
+    <div class="firma-linea"></div>
+    <p class="firma-nombre">{{ profesional.nombre }}</p>
+    <p class="firma-detalle">{{ profesional.especialidad or "Odontología" }}</p>
+    {% if profesional.numero_colegiatura %}
+    <p class="firma-detalle">N.° de colegiatura {{ profesional.numero_colegiatura }}</p>
+    {% endif %}
+  </footer>
+</body>
+</html>

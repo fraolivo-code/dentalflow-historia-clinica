@@ -6,6 +6,7 @@
 # las fuentes del sistema (la imagen slim solo trae DejaVu, que fontconfig usa
 # como fallback).
 
+from datetime import date, time
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -21,6 +22,27 @@ _plantillas = Environment(
     loader=FileSystemLoader(APP_DIR / "templates" / "pdf"),
     autoescape=select_autoescape(["html"]),
 )
+
+MESES = (
+    "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+    "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+)
+
+
+def fecha_larga(d: date) -> str:
+    """25 de septiembre de 2026"""
+    return f"{d.day} de {MESES[d.month - 1]} de {d.year}"
+
+
+def hora_12(t: time) -> str:
+    """8:30 a. m. — espacios no separables para que no se corte al final de linea."""
+    h = t.hour % 12 or 12
+    sufijo = "a.\u00a0m." if t.hour < 12 else "p.\u00a0m."
+    return f"{h}:{t.minute:02d}\u00a0{sufijo}"
+
+
+_plantillas.filters["fecha_larga"] = fecha_larga
+_plantillas.filters["hora_12"] = hora_12
 
 
 def _renderizar(plantilla: str, contexto: dict) -> bytes:

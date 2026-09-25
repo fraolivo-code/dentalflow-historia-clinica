@@ -4,15 +4,7 @@
 <meta charset="utf-8">
 <title>Prueba de PDF</title>
 <style>
-  /* Fuentes de marca desde app/static/fonts (base_url del render). */
-  @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; src: url("fonts/inter/Inter-Regular.ttf"); }
-  @font-face { font-family: "Inter"; font-weight: 400; font-style: italic; src: url("fonts/inter/Inter-Italic.ttf"); }
-  @font-face { font-family: "Inter"; font-weight: 500; font-style: normal; src: url("fonts/inter/Inter-Medium.ttf"); }
-  @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; src: url("fonts/inter/Inter-SemiBold.ttf"); }
-  @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; src: url("fonts/inter/Inter-Bold.ttf"); }
-  @font-face { font-family: "Fraunces"; font-weight: 400; font-style: normal; src: url("fonts/fraunces/Fraunces72pt-Regular.ttf"); }
-  @font-face { font-family: "Fraunces"; font-weight: 400; font-style: italic; src: url("fonts/fraunces/Fraunces72pt-Italic.ttf"); }
-  @font-face { font-family: "Fraunces"; font-weight: 600; font-style: normal; src: url("fonts/fraunces/Fraunces72pt-SemiBold.ttf"); }
+  {% include "_fuentes.css" %}
 
   @page { size: A4; margin: 2cm; }
   body { font-family: "Inter", sans-serif; font-size: 11pt; color: #333333; line-height: 1.5; }

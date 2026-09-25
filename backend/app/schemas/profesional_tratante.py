@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 class ProfesionalTratanteCreate(BaseModel):
     nombre: str
     especialidad: str | None = None
+    numero_colegiatura: str | None = None
 
 
 class ProfesionalTratanteRead(BaseModel):
@@ -14,3 +15,4 @@ class ProfesionalTratanteRead(BaseModel):
     id: UUID
     nombre: str
     especialidad: str | None
+    numero_colegiatura: str | None
