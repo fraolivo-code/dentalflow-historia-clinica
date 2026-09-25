@@ -15,6 +15,8 @@ from weasyprint import HTML
 from weasyprint.text.fonts import FontConfiguration
 
 APP_DIR = Path(__file__).resolve().parent.parent
+# Unico lugar donde vive la ciudad que imprimen los documentos ("se expide en ...").
+CIUDAD_CONSULTORIO = "Caracas"
 # Barra final: sin ella las rutas relativas se resolverian contra app/.
 BASE_URL_ESTATICOS = (APP_DIR / "static").as_uri() + "/"
 
@@ -43,6 +45,7 @@ def hora_12(t: time) -> str:
 
 _plantillas.filters["fecha_larga"] = fecha_larga
 _plantillas.filters["hora_12"] = hora_12
+_plantillas.globals["ciudad_consultorio"] = CIUDAD_CONSULTORIO
 
 
 def _renderizar(plantilla: str, contexto: dict) -> bytes:

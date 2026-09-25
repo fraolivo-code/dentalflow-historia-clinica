@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_current_usuario, get_session
+from app.deps import get_current_usuario, get_session, requerir_dra
+from app.models.common import ahora
 from app.models.paciente import Paciente
 from app.models.usuario import Usuario
-from app.schemas.paciente import PacienteCreate, PacienteRead
+from app.schemas.paciente import PacienteCreate, PacienteRead, PacienteUpdate
 from app.services.correlativos import generar_numero_historia
 
 # Paciente basico: accesible para dra y asistente por igual (ambas necesitan
@@ -61,6 +62,31 @@ async def obtener_paciente(paciente_id: UUID, session: AsyncSession = Depends(ge
     paciente = await session.get(Paciente, paciente_id)
     if paciente is None:
         raise HTTPException(404, "Paciente no encontrado")
+    return paciente
+
+
+@router.patch(
+    "/{paciente_id}", response_model=PacienteRead, dependencies=[Depends(requerir_dra)]
+)
+async def actualizar_paciente(
+    paciente_id: UUID,
+    datos: PacienteUpdate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """
+    Correccion parcial de los datos de alta (25/09/2026): solo dra, aunque
+    crear y ver pacientes lo puede hacer tambien asistente.
+    """
+    paciente = await obtener_paciente_o_404(paciente_id, session)
+    cambios = datos.model_dump(exclude_unset=True)
+    for campo, valor in cambios.items():
+        setattr(paciente, campo, valor)
+    paciente.actualizado_en = ahora()
+    paciente.actualizado_por = usuario.id
+
+    await session.commit()
+    await session.refresh(paciente)
     return paciente
 
 

@@ -23,6 +23,9 @@ class Paciente(Base, UUIDPk, AuditMixin):
     # Llave de vinculacion con Alma (fase1-whatsapp-bot): mismo numero de WhatsApp.
     movil: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     nombre_completo: Mapped[str] = mapped_column(String(300), nullable=False)
+    # Opcional (25/09/2026): se imprime en la constancia de asistencia si existe.
+    # Sin UNIQUE — la identificacion del sistema sigue siendo numero_historia.
+    cedula: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     direccion: Mapped[str | None] = mapped_column(Text, nullable=True)
     email: Mapped[str | None] = mapped_column(String(300), nullable=True)

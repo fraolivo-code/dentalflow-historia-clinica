@@ -19,9 +19,6 @@ from app.services.pdf import generar_pdf
 # documentos clinicos, especificacion del 19/09/2026).
 router = APIRouter(tags=["constancias-asistencia"], dependencies=[Depends(requerir_dra)])
 
-# Lugar de emision que se imprime en la formula de cierre ("se expide en ...").
-CIUDAD_EMISION = "Caracas"
-
 
 def _fecha(d) -> str:
     return d.strftime("%d/%m/%Y")
@@ -84,6 +81,23 @@ async def crear_constancia_asistencia(
     return constancia
 
 
+@router.get(
+    "/pacientes/{paciente_id}/constancias-asistencia",
+    response_model=list[ConstanciaAsistenciaRead],
+)
+async def listar_constancias_asistencia(
+    paciente_id: UUID, session: AsyncSession = Depends(get_session)
+):
+    """Mas reciente primero (por fecha de emision, y por carga dentro del mismo dia)."""
+    await obtener_paciente_o_404(paciente_id, session)
+    resultado = await session.execute(
+        select(ConstanciaAsistencia)
+        .where(ConstanciaAsistencia.paciente_id == paciente_id)
+        .order_by(ConstanciaAsistencia.fecha_emision.desc(), ConstanciaAsistencia.creado_en.desc())
+    )
+    return resultado.scalars().all()
+
+
 @router.get("/pacientes/{paciente_id}/constancias-asistencia/{constancia_id}/pdf")
 async def pdf_constancia_asistencia(
     paciente_id: UUID,
@@ -91,8 +105,8 @@ async def pdf_constancia_asistencia(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    A proposito solo usa nombre del paciente, fecha de la visita y lo cargado
-    en la constancia: nada de motivo, diagnostico ni odontograma.
+    A proposito solo usa nombre y cedula del paciente, fecha de la visita y lo
+    cargado en la constancia: nada de motivo, diagnostico ni odontograma.
     """
     paciente = await obtener_paciente_o_404(paciente_id, session)
     constancia = await session.get(ConstanciaAsistencia, constancia_id)
@@ -106,12 +120,12 @@ async def pdf_constancia_asistencia(
         {
             "profesional": profesional,
             "paciente_nombre": paciente.nombre_completo,
+            "paciente_cedula": paciente.cedula,
             "fecha_visita": visita.fecha,
             "hora_inicio": constancia.hora_inicio,
             "hora_fin": constancia.hora_fin,
             "texto_adicional": constancia.texto_adicional,
             "fecha_emision": constancia.fecha_emision,
-            "ciudad": CIUDAD_EMISION,
         },
     )
     nombre = f"constancia-asistencia-{paciente.numero_historia}-{constancia.fecha_emision.isoformat()}.pdf"
