@@ -183,9 +183,9 @@ class TipoConsentimiento(str, enum.Enum):
 class SitioPeriodontal(str, enum.Enum):
     """
     6 sitios por diente (estandar perio-tools.com / Universidad de Berna,
-    seccion 1.5). Nomenclatura generica vestibular/palatino-lingual
-    pendiente de confirmar con la Dra. junto con el resto de la UI del
-    periodontograma.
+    seccion 1.5). El valor interno "palatino_lingual" se mantiene (24/09/2026):
+    el frontend lo muestra como "palatino" en el arco superior y "lingual" en
+    el inferior, sin tocar el enum de la base.
     """
 
     mesiovestibular = "mesiovestibular"
@@ -197,11 +197,45 @@ class SitioPeriodontal(str, enum.Enum):
 
 
 class FurcacionGlickman(str, enum.Enum):
-    """Grados I-III. Solo aplica a molares (columna nullable)."""
+    """
+    Grados I-III (sin IV, confirmado 24/09/2026). Solo aplica a dientes con
+    furcacion: molares y los premolares birradiculares 14/24 (columna nullable).
+    """
 
     grado_i = "I"
     grado_ii = "II"
     grado_iii = "III"
+
+
+def admite_furcacion(numero_diente: int) -> bool:
+    """
+    Molares (posicion 6, 7, 8 de cualquier cuadrante) y los premolares
+    birradiculares 14/24. Mismo criterio que el CHECK ck_perio_furcacion_diente
+    (migracion 0010). Vive aqui por el mismo motivo que validar_superficie:
+    la usan los schemas de request.
+    """
+    return numero_diente % 10 in (6, 7, 8) or numero_diente in (14, 24)
+
+
+class RecesionCairo(str, enum.Enum):
+    """
+    Clasificacion de Cairo de la recesion (24/09/2026). Es ADICIONAL a
+    recesion_mm (la Dra. carga los dos) y opcional por sitio.
+    """
+
+    RT1 = "RT1"
+    RT2 = "RT2"
+    RT3 = "RT3"
+
+
+# Rangos por sitio (24/09/2026): red de seguridad contra errores de tipeo,
+# no limites clinicos. Espejados en los CHECK de la migracion 0010.
+RANGO_MARGEN_GINGIVAL = (-6, 12)
+# Sondaje: puede superar 12 mm en periodontitis severa (previo a una
+# extraccion); 12 es un umbral clinico, no un limite de captura. El tope de
+# 30 solo atrapa un typo evidente (p. ej. "120" en vez de "12").
+RANGO_PROFUNDIDAD_SONDAJE = (0, 30)
+RANGO_RECESION_MM = (0, 12)
 
 
 class OrigenHallazgo(str, enum.Enum):

@@ -87,13 +87,10 @@ uvicorn app.main:app --reload   # docs interactivas en /docs
 
 ## Notas abiertas (no bloquean, pero pendientes de cerrar)
 
-- `periodontograma_registro.recesion_mm`: modelado como medida en mm por
-  sitio. La especificación dice "recesión (Cairo)", que podría referirse a
-  la clasificación Cairo (RT1/RT2/RT3) en vez de una medida — confirmar con
-  la Dra.
-- `sitio_periodontal` (6 sitios): nomenclatura genérica
-  vestibular/palatino-lingual, pendiente de validar contra la convención
-  exacta que use la Dra.
+- ~~`recesion_mm` vs. Cairo~~ y ~~nomenclatura de sitios~~: cerrados con la
+  Dra. el 24/09/2026 (migración 0010). Se guardan las dos: `recesion_mm` y
+  `recesion_cairo` (RT1/RT2/RT3, opcional). `palatino_lingual` queda como
+  valor interno; el frontend lo muestra como palatino/lingual según el arco.
 - `consentimiento.archivo`: por ahora es solo texto (ruta/URL). Falta
   decidir dónde se aloja el archivo físico (Railway volume, S3, etc.) —
   no bloquea el esquema.
