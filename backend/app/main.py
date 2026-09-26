@@ -7,11 +7,13 @@ from app.routers import (
     bitacora,
     consentimientos,
     constancias_asistencia,
+    indicaciones_tratamiento,
     observaciones,
     odontograma,
     pacientes,
     pdf,
     periodontograma,
+    plantillas_indicacion,
     profesionales_tratantes,
     puentes,
     tratamientos,
@@ -39,6 +41,8 @@ app.include_router(puentes.router)
 app.include_router(periodontograma.router)
 app.include_router(consentimientos.router)
 app.include_router(constancias_asistencia.router)
+app.include_router(plantillas_indicacion.router)
+app.include_router(indicaciones_tratamiento.router)
 app.include_router(antecedentes.router)
 app.include_router(profesionales_tratantes.router)
 app.include_router(tratamientos.router)

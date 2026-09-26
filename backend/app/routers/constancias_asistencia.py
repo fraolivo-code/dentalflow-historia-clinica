@@ -24,7 +24,8 @@ def _fecha(d) -> str:
     return d.strftime("%d/%m/%Y")
 
 
-async def _profesional_del_usuario(usuario: Usuario, session: AsyncSession) -> ProfesionalTratante:
+async def profesional_del_usuario(usuario: Usuario, session: AsyncSession) -> ProfesionalTratante:
+    """Quien firma los documentos PDF (tambien lo usan las indicaciones)."""
     resultado = await session.execute(
         select(ProfesionalTratante).where(ProfesionalTratante.usuario_id == usuario.id)
     )
@@ -33,7 +34,7 @@ async def _profesional_del_usuario(usuario: Usuario, session: AsyncSession) -> P
         raise HTTPException(
             409,
             "Su usuario no esta vinculado a un profesional tratante: no se puede "
-            "emitir la constancia a su nombre.",
+            "emitir el documento a su nombre.",
         )
     return profesional
 
@@ -67,7 +68,7 @@ async def crear_constancia_asistencia(
             422, f"La fecha de emision ({_fecha(fecha_emision)}) no puede ser posterior a hoy."
         )
 
-    profesional = await _profesional_del_usuario(usuario, session)
+    profesional = await profesional_del_usuario(usuario, session)
     constancia = ConstanciaAsistencia(
         paciente_id=paciente_id,
         **datos.model_dump(exclude={"fecha_emision"}),

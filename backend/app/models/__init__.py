@@ -6,6 +6,7 @@ from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
 from app.models.constancia_asistencia import ConstanciaAsistencia
+from app.models.indicacion import IndicacionTratamiento, PlantillaIndicacion
 from app.models.observacion import Observacion
 from app.models.odontograma import (
     DienteAnatomia,
@@ -27,6 +28,7 @@ __all__ = [
     "Consentimiento",
     "ConstanciaAsistencia",
     "DienteAnatomia",
+    "IndicacionTratamiento",
     "Observacion",
     "OdontogramaHallazgo",
     "OdontogramaLesionApical",
@@ -36,6 +38,7 @@ __all__ = [
     "Paciente",
     "PeriodontogramaDienteResumen",
     "PeriodontogramaRegistro",
+    "PlantillaIndicacion",
     "ProfesionalTratante",
     "Tratamiento",
     "TratamientoDiente",

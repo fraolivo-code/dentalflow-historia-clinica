@@ -6,6 +6,7 @@
 # las fuentes del sistema (la imagen slim solo trae DejaVu, que fontconfig usa
 # como fallback).
 
+import re
 from datetime import date, time
 from pathlib import Path
 
@@ -43,7 +44,36 @@ def hora_12(t: time) -> str:
     return f"{h}:{t.minute:02d}\u00a0{sufijo}"
 
 
+_VINETA = re.compile(r"^\s*[-•*]\s+(.*)$")
+
+
+def bloques_texto(texto: str) -> list[list[tuple[str, str | list[str]]]]:
+    """
+    Texto libre (contenido de la Dra.) -> parrafos, para no aplastarlo en un
+    solo bloque. Una linea en blanco separa parrafos; dentro de cada uno, las
+    lineas que empiezan con "- " (o "•", "*") forman una lista y el resto se
+    agrupa como texto (sus saltos de linea simples se respetan con pre-line).
+    Cada parrafo: [("texto", str) | ("lista", [items])].
+    """
+    parrafos = []
+    for crudo in re.split(r"\n\s*\n", texto.replace("\r\n", "\n").strip()):
+        bloques: list[tuple[str, str | list[str]]] = []
+        for linea in crudo.split("\n"):
+            vineta = _VINETA.match(linea)
+            if vineta:
+                if not bloques or bloques[-1][0] != "lista":
+                    bloques.append(("lista", []))
+                bloques[-1][1].append(vineta.group(1).strip())
+            elif bloques and bloques[-1][0] == "texto":
+                bloques[-1] = ("texto", f"{bloques[-1][1]}\n{linea.strip()}")
+            else:
+                bloques.append(("texto", linea.strip()))
+        parrafos.append(bloques)
+    return parrafos
+
+
 _plantillas.filters["fecha_larga"] = fecha_larga
+_plantillas.filters["bloques_texto"] = bloques_texto
 _plantillas.filters["hora_12"] = hora_12
 _plantillas.globals["ciudad_consultorio"] = CIUDAD_CONSULTORIO
 
