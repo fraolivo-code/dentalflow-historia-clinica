@@ -3,19 +3,29 @@
 {% block titulo %}Indicaciones de tratamiento{% endblock %}
 
 {% block estilos %}
-  .datos { margin: 0 0 24pt; padding-bottom: 12pt; border-bottom: 0.75pt solid var(--borde); }
+  /* Espaciado mas compacto que la constancia (mismo tamano de letra): las
+     indicaciones son mas largas y conviene que las habituales entren en una
+     hoja. Si un texto no entra, pasa a una segunda pagina normalmente. */
+  @page { margin: 1.8cm 2.2cm 1.6cm; }
+  body { line-height: 1.45; }
+  .membrete { margin-bottom: 18pt; }
+  h1 { margin-bottom: 14pt; }
+
+  .datos { margin: 0 0 16pt; padding-bottom: 8pt; border-bottom: 0.75pt solid var(--borde); }
   .datos p { margin: 0; }
   .datos .etiqueta { color: var(--secundario); }
 
   /* Cada parrafo del texto (separado por linea en blanco) es un bloque; las
      lineas que empiezan con "- " se vuelven vinetas con sangria colgante. */
-  .parrafo { margin: 0 0 12pt; page-break-inside: avoid; }
+  .parrafo { margin: 0 0 7pt; page-break-inside: avoid; }
   .parrafo p { margin: 0; white-space: pre-line; }
   .parrafo ul { margin: 2pt 0 0; padding-left: 16pt; }
-  .parrafo li { margin: 0 0 3pt; padding-left: 2pt; }
+  .parrafo li { margin: 0 0 2pt; padding-left: 2pt; }
   .parrafo li::marker { color: var(--acento); }
 
-  .firma { margin-top: 64pt; }
+  /* break-before: avoid -> si no entra, el ultimo parrafo pasa de pagina
+     junto con la firma, en vez de dejarla sola en la hoja siguiente. */
+  .firma { margin-top: 28pt; break-before: avoid; }
 {% endblock %}
 
 {% block cuerpo %}
