@@ -13,7 +13,7 @@
 
 {% block cuerpo %}
     <p>
-      Por medio de la presente se hace constar que <strong>{{ paciente_nombre }}</strong>
+      Por medio de la presente se hace constar que <strong class="paciente">{{ paciente_nombre }}</strong>
       {%- if paciente_cedula %}, titular de la cédula de identidad N.° <strong>{{ paciente_cedula }}</strong>,{% endif %}
       asistió a consulta odontológica el día <strong>{{ fecha_visita | fecha_larga }}</strong>
       {%- if hora_inicio and hora_fin %}, en el horario comprendido entre las <span class="hora">{{ hora_inicio | hora_12 }}</span> y las <span class="hora">{{ hora_fin | hora_12 }}</span>

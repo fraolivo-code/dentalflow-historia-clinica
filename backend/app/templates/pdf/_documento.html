@@ -19,6 +19,19 @@
   }
 
   @page { size: A4; margin: 2.2cm 2.4cm 2cm; }
+
+  /* Encabezado de continuacion (pagina 2 en adelante): si las hojas impresas
+     se separan, cada una se identifica sola. El nombre sale del elemento
+     .paciente de cada documento via string-set (sin texto de Jinja en el CSS). */
+  .paciente { string-set: paciente content(); }
+  @page {
+    @top-left {
+      content: string(paciente) " — continuación";
+      font-family: "Inter", sans-serif; font-size: 8.5pt; color: #66806F; /* --secundario */
+      vertical-align: bottom; padding-bottom: 10pt;
+    }
+  }
+  @page :first { @top-left { content: none; } }
   body { font-family: "Inter", sans-serif; font-size: 11.5pt; color: var(--texto); line-height: 1.7; margin: 0; }
 
   .membrete { border-bottom: 1.5pt solid var(--acento); padding-bottom: 10pt; margin-bottom: 44pt; }

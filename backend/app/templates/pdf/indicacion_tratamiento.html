@@ -30,7 +30,7 @@
 
 {% block cuerpo %}
     <div class="datos">
-      <p><span class="etiqueta">Paciente:</span> <strong>{{ paciente_nombre }}</strong></p>
+      <p><span class="etiqueta">Paciente:</span> <strong class="paciente">{{ paciente_nombre }}</strong></p>
       <p><span class="etiqueta">Fecha:</span> {{ fecha | fecha_larga }}</p>
     </div>
     {% for parrafo in contenido | bloques_texto %}
