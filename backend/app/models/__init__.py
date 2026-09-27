@@ -18,6 +18,7 @@ from app.models.odontograma import (
 from app.models.paciente import Paciente
 from app.models.periodontograma import PeriodontogramaDienteResumen, PeriodontogramaRegistro
 from app.models.profesional_tratante import ProfesionalTratante
+from app.models.receta import Medicamento, Receta, RecetaMedicamento
 from app.models.tratamiento import Tratamiento, TratamientoDiente
 from app.models.usuario import Usuario
 from app.models.visita import Visita
@@ -29,6 +30,7 @@ __all__ = [
     "ConstanciaAsistencia",
     "DienteAnatomia",
     "IndicacionTratamiento",
+    "Medicamento",
     "Observacion",
     "OdontogramaHallazgo",
     "OdontogramaLesionApical",
@@ -40,6 +42,8 @@ __all__ = [
     "PeriodontogramaRegistro",
     "PlantillaIndicacion",
     "ProfesionalTratante",
+    "Receta",
+    "RecetaMedicamento",
     "Tratamiento",
     "TratamientoDiente",
     "Usuario",

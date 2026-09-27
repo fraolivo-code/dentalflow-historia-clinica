@@ -1,0 +1,57 @@
+{% extends "_documento.html" %}
+
+{#- Base de los 2 documentos que salen de una misma receta (practica real de
+    la Dra.): el recipe para la farmacia (solo que despachar) y las
+    indicaciones de medicamentos para el paciente (como tomarlos). Aca va lo
+    comun: datos del paciente y la lista numerada de medicamentos. #}
+
+{% block estilos %}
+  /* Espaciado compacto (mismo que las indicaciones de tratamiento): una
+     receta habitual entra en una hoja; si la lista es larga, pasa a una
+     segunda pagina con el encabezado de continuacion de la base. */
+  @page { margin: 1.8cm 2.2cm 1.6cm; }
+  body { line-height: 1.45; }
+  .membrete { margin-bottom: 18pt; }
+  h1 { margin-bottom: 14pt; }
+
+  .datos { margin: 0 0 14pt; padding-bottom: 8pt; border-bottom: 0.75pt solid var(--borde); }
+  .datos p { margin: 0; }
+  .datos .etiqueta { color: var(--secundario); }
+
+  /* Cada medicamento es un bloque que no se corta entre paginas; el numero
+     cuelga a la izquierda para que los nombres queden alineados. */
+  .medicamento { position: relative; padding-left: 22pt; margin: 0 0 13pt; page-break-inside: avoid; }
+  .numero { position: absolute; left: 0; top: 0; font-weight: 600; color: var(--acento); }
+  .nombre { margin: 0; font-weight: 600; font-size: 12.5pt; color: var(--primario); }
+  .presentacion { font-weight: 400; font-size: 10.5pt; color: var(--secundario); }
+
+  /* Si no entra, el ultimo bloque pasa de pagina junto con la firma. */
+  .firma { margin-top: 44pt; break-before: avoid; }
+
+  {% block estilos_receta %}{% endblock %}
+{% endblock %}
+
+{% block cuerpo %}
+    <div class="datos">
+      <p><span class="etiqueta">Paciente:</span> <strong class="paciente">{{ paciente_nombre }}</strong></p>
+      {% if paciente_cedula %}
+      <p><span class="etiqueta">C.I.:</span> {{ paciente_cedula }}</p>
+      {% endif %}
+      <p><span class="etiqueta">Fecha:</span> {{ fecha | fecha_larga }}</p>
+    </div>
+
+    {% block antes_lista %}{% endblock %}
+    {% for linea in medicamentos %}
+    <div class="medicamento">
+      <span class="numero">{{ loop.index }}.</span>
+      <p class="nombre">
+        {#- Copia congelada al emitir, no el nombre actual del catalogo. #}
+        {{ linea.medicamento_nombre_impreso }}
+        {%- if linea.presentacion_impresa %} <span class="presentacion">· {{ linea.presentacion_impresa }}</span>{% endif %}
+      </p>
+      {% block detalle_linea scoped %}{% endblock %}
+    </div>
+    {% endfor %}
+
+    {% block despues_lista %}{% endblock %}
+{% endblock %}

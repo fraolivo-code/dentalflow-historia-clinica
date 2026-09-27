@@ -8,6 +8,7 @@ from app.routers import (
     consentimientos,
     constancias_asistencia,
     indicaciones_tratamiento,
+    medicamentos,
     observaciones,
     odontograma,
     pacientes,
@@ -16,6 +17,7 @@ from app.routers import (
     plantillas_indicacion,
     profesionales_tratantes,
     puentes,
+    recetas,
     tratamientos,
     usuarios,
     visitas,
@@ -43,6 +45,8 @@ app.include_router(consentimientos.router)
 app.include_router(constancias_asistencia.router)
 app.include_router(plantillas_indicacion.router)
 app.include_router(indicaciones_tratamiento.router)
+app.include_router(medicamentos.router)
+app.include_router(recetas.router)
 app.include_router(antecedentes.router)
 app.include_router(profesionales_tratantes.router)
 app.include_router(tratamientos.router)

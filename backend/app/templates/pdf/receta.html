@@ -1,0 +1,17 @@
+{% extends "_receta.html" %}
+
+{#- "Récipe": nombre del documento en Venezuela (confirmado por la Dra.). En el
+    codigo sigue llamandose receta. Es para la farmacia: solo que despachar
+    (nombre + presentacion). Dosis, via, frecuencia, duracion y las notas van
+    en indicaciones_medicamentos.html, para el paciente. #}
+{% block titulo %}Récipe{% endblock %}
+
+{% block estilos_receta %}
+  /* "Rp/" (recipe): marca clasica de inicio de la prescripcion. */
+  .rp { font-family: "Fraunces", serif; font-style: italic; font-size: 20pt; color: var(--acento); margin: 0 0 6pt; line-height: 1; }
+  .medicamento { margin-bottom: 9pt; }
+{% endblock %}
+
+{% block antes_lista %}
+    <p class="rp">Rp/</p>
+{% endblock %}

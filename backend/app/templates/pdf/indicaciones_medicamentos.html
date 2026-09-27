@@ -1,0 +1,44 @@
+{% extends "_receta.html" %}
+
+{#- Para el paciente: como tomar cada medicamento del recipe (misma receta). #}
+{% block titulo %}Indicaciones de medicamentos{% endblock %}
+
+{% block estilos_receta %}
+  /* Columnas de ancho fijo: Dosis / Via / Frecuencia / Duracion quedan
+     alineadas de un medicamento al siguiente, como en un formulario. */
+  .posologia { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 4pt 0 0; }
+  .posologia td { padding: 0 12pt 0 0; vertical-align: top; }
+  .col-dosis { width: 27%; } .col-via { width: 20%; } .col-frecuencia { width: 31%; } .col-duracion { width: 22%; }
+  .posologia .etiqueta { font-size: 7.5pt; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secundario); line-height: 1.3; }
+  .posologia .valor { font-size: 11.5pt; color: var(--texto); }
+  .adicionales { margin: 4pt 0 0; font-style: italic; white-space: pre-line; }
+
+  .notas { margin: 16pt 0 0; padding-top: 8pt; border-top: 0.75pt solid var(--borde); page-break-inside: avoid; }
+  .notas-titulo { margin: 0 0 2pt; font-weight: 600; color: var(--primario); }
+  .notas p { margin: 0; white-space: pre-line; }
+{% endblock %}
+
+{% block detalle_linea %}
+      <table class="posologia">
+        <colgroup><col class="col-dosis"><col class="col-via"><col class="col-frecuencia"><col class="col-duracion"></colgroup>
+        <tr>
+          <td><div class="etiqueta">Dosis</div><div class="valor">{{ linea.dosis }}</div></td>
+          {#- Sin via, la columna queda vacia para no correr las demas. #}
+          <td>{% if linea.via %}<div class="etiqueta">Vía</div><div class="valor">{{ linea.via }}</div>{% endif %}</td>
+          <td><div class="etiqueta">Frecuencia</div><div class="valor">{{ linea.frecuencia }}</div></td>
+          <td><div class="etiqueta">Duración</div><div class="valor">{{ linea.duracion }}</div></td>
+        </tr>
+      </table>
+      {% if linea.indicaciones_adicionales %}
+      <p class="adicionales">{{ linea.indicaciones_adicionales }}</p>
+      {% endif %}
+{% endblock %}
+
+{% block despues_lista %}
+    {% if notas_generales %}
+    <div class="notas">
+      <p class="notas-titulo">Indicaciones generales</p>
+      <p>{{ notas_generales }}</p>
+    </div>
+    {% endif %}
+{% endblock %}
