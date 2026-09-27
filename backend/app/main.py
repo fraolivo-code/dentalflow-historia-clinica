@@ -7,6 +7,7 @@ from app.routers import (
     bitacora,
     consentimientos,
     constancias_asistencia,
+    historia_clinica,
     indicaciones_tratamiento,
     medicamentos,
     observaciones,
@@ -53,6 +54,7 @@ app.include_router(tratamientos.router)
 app.include_router(bitacora.router)
 app.include_router(observaciones.router)
 app.include_router(pdf.router)
+app.include_router(historia_clinica.router)
 
 
 @app.get("/health", tags=["health"])

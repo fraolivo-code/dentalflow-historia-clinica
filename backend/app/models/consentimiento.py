@@ -30,6 +30,12 @@ class Consentimiento(Base):
     paciente_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("paciente.id"), nullable=False, index=True
     )
+    # Consentimiento de tratamiento: a que tratamiento corresponde (se renueva
+    # con cada tratamiento nuevo, especificacion de formularios seccion 8).
+    # Null para el de almacenamiento digital (migracion 0015).
+    tratamiento_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tratamiento.id"), nullable=True, index=True
+    )
     tipo: Mapped[TipoConsentimiento] = mapped_column(
         Enum(TipoConsentimiento, name="tipo_consentimiento", native_enum=True), nullable=False
     )

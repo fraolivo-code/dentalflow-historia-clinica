@@ -47,6 +47,15 @@
   .firma-nombre { font-weight: 600; color: var(--primario); margin: 0; line-height: 1.4; }
   .firma-detalle { font-size: 9.5pt; color: var(--secundario); margin: 0; line-height: 1.4; }
 
+  /* Listas con vineta: la vineta es un caracter del texto (<span class="vineta">),
+     no el ::marker automatico. Se ve igual, pero los extractores de texto la
+     mantienen pegada a su item (con ::marker algunos la sacaban de lugar).
+     Sangria colgante: las lineas largas siguen alineadas bajo el texto. 8pt =
+     el ancho que ocupaba el ::marker, para que se vea identico. */
+  .vinetas { list-style: none; margin: 0; padding-left: 0; }
+  .vinetas li { padding-left: 8pt; text-indent: -8pt; }
+  .vineta { display: inline-block; width: 8pt; text-indent: 0; color: var(--acento); }
+
   {% block estilos %}{% endblock %}
 </style>
 </head>

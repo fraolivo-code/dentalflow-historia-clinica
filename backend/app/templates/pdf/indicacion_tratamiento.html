@@ -19,9 +19,12 @@
      lineas que empiezan con "- " se vuelven vinetas con sangria colgante. */
   .parrafo { margin: 0 0 7pt; page-break-inside: avoid; }
   .parrafo p { margin: 0; white-space: pre-line; }
-  .parrafo ul { margin: 2pt 0 0; padding-left: 16pt; }
-  .parrafo li { margin: 0 0 2pt; padding-left: 2pt; }
-  .parrafo li::marker { color: var(--acento); }
+  /* Vinetas de la base (.vinetas), con el ancho de vineta que corresponde a
+     este tamano de letra; el texto queda a 18pt del margen. */
+  .parrafo ul { margin: 2pt 0 0; padding-left: 6pt; }
+  .parrafo .vinetas li { padding-left: 12pt; text-indent: -12pt; }
+  .parrafo .vineta { width: 12pt; }
+  .parrafo li { margin: 0 0 2pt; }
 
   /* break-before: avoid -> si no entra, el ultimo parrafo pasa de pagina
      junto con la firma, en vez de dejarla sola en la hoja siguiente. */
@@ -37,9 +40,9 @@
     <div class="parrafo">
       {%- for tipo, valor in parrafo %}
       {%- if tipo == "lista" %}
-      <ul>
+      <ul class="vinetas">
         {%- for item in valor %}
-        <li>{{ item }}</li>
+        <li><span class="vineta">•</span>{{ item }}</li>
         {%- endfor %}
       </ul>
       {%- else %}

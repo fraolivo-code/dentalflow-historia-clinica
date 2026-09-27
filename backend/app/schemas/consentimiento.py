@@ -10,6 +10,7 @@ class ConsentimientoCreate(BaseModel):
     tipo: TipoConsentimiento
     fecha: date
     archivo: str
+    tratamiento_id: UUID | None = None
 
 
 class ConsentimientoRead(BaseModel):
@@ -17,6 +18,7 @@ class ConsentimientoRead(BaseModel):
 
     id: UUID
     paciente_id: UUID
+    tratamiento_id: UUID | None
     tipo: TipoConsentimiento
     fecha: date
     archivo: str

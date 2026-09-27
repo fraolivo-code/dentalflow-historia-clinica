@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session
 from app.models.consentimiento import Consentimiento
+from app.models.tratamiento import Tratamiento
 from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.consentimiento import ConsentimientoCreate, ConsentimientoRead
@@ -28,6 +29,10 @@ async def crear_consentimiento(
     usuario: Usuario = Depends(get_current_usuario),
 ):
     await obtener_paciente_o_404(paciente_id, session)
+    if datos.tratamiento_id is not None:
+        tratamiento = await session.get(Tratamiento, datos.tratamiento_id)
+        if tratamiento is None or tratamiento.paciente_id != paciente_id:
+            raise HTTPException(404, "Tratamiento no encontrado para este paciente")
     consentimiento = Consentimiento(
         paciente_id=paciente_id, **datos.model_dump(), creado_por=usuario.id
     )

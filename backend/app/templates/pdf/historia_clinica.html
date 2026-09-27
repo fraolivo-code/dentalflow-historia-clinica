@@ -1,0 +1,193 @@
+{% extends "_documento.html" %}
+
+{#- Documento 5 de 5: historia clinica completa (Habeas Data). Puede ocupar
+    varias paginas: el encabezado de continuacion de la base las identifica
+    con el nombre del paciente. #}
+{% block titulo %}Historia clínica{% endblock %}
+
+{% block estilos %}
+  @page { margin: 1.8cm 2.2cm 1.6cm; }
+  body { font-size: 10.5pt; line-height: 1.4; }
+  .membrete { margin-bottom: 16pt; }
+  h1 { margin-bottom: 12pt; }
+
+  /* Ficha de identificacion: dos columnas de etiqueta / valor. */
+  .ficha { width: 100%; border-collapse: collapse; margin: 0 0 4pt; }
+  .ficha td { padding: 1.5pt 8pt 1.5pt 0; vertical-align: top; }
+  .ficha .etiqueta { width: 23%; color: var(--secundario); white-space: nowrap; }
+  .ficha .valor { width: 27%; }
+
+  h2 { font-family: "Fraunces", serif; font-weight: 600; font-size: 13pt; color: var(--primario); margin: 18pt 0 6pt; padding-bottom: 3pt; border-bottom: 1pt solid var(--acento); break-after: avoid; }
+  h3 { font-size: 10.5pt; font-weight: 600; color: var(--primario); margin: 0 0 3pt; }
+  .vacio { color: var(--secundario); font-style: italic; margin: 0; }
+
+  /* Cada registro (visita, tratamiento) es un bloque que no se corta. */
+  .registro { margin: 0 0 10pt; page-break-inside: avoid; }
+  .campos { width: 100%; border-collapse: collapse; }
+  .campos td { padding: 1pt 0; vertical-align: top; }
+  .campos .etiqueta { width: 30%; color: var(--secundario); padding-right: 8pt; }
+  .campos .valor { white-space: pre-line; }
+  .estado { font-weight: 400; font-size: 9pt; color: var(--acento); margin-left: 4pt; }
+
+  /* Vinetas de la base (.vinetas); el texto queda a 14pt del margen. */
+  .lista { padding-left: 6pt; }
+  .lista li { margin: 0 0 2pt; }
+
+  /* Listados fechados (bitacora, observaciones, consentimientos). */
+  .tabla { width: 100%; border-collapse: collapse; }
+  .tabla th { font-size: 7.5pt; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secundario); font-weight: 400; text-align: left; padding: 0 8pt 3pt 0; border-bottom: 0.75pt solid var(--borde); }
+  .tabla td { padding: 4pt 8pt 4pt 0; vertical-align: top; border-bottom: 0.5pt solid var(--borde); }
+  .tabla tr { page-break-inside: avoid; }
+  .tabla .fecha { width: 17%; white-space: nowrap; }
+  .tabla .texto { white-space: pre-line; }
+  .meta { font-size: 9pt; color: var(--secundario); margin-top: 1pt; }
+
+  .firma { margin-top: 40pt; }
+{% endblock %}
+
+{%- macro fila(etiqueta, valor) -%}
+  {%- if valor %}<tr><td class="etiqueta">{{ etiqueta }}</td><td class="valor">{{ valor }}</td></tr>{% endif -%}
+{%- endmacro %}
+
+
+{% block cuerpo %}
+    {#- 1. Identificacion #}
+    <table class="ficha">
+      <tr>
+        <td class="etiqueta">Paciente</td><td class="valor" colspan="3"><strong class="paciente">{{ paciente.nombre_completo }}</strong></td>
+      </tr>
+      <tr>
+        <td class="etiqueta">N.° de historia</td><td class="valor">{{ paciente.numero_historia }}</td>
+        <td class="etiqueta">C.I.</td><td class="valor">{{ paciente.cedula or "—" }}</td>
+      </tr>
+      <tr>
+        <td class="etiqueta">Fecha de nacimiento</td>
+        <td class="valor">{% if paciente.fecha_nacimiento %}{{ paciente.fecha_nacimiento.strftime("%d/%m/%Y") }} ({{ edad }} años){% else %}—{% endif %}</td>
+        <td class="etiqueta">Fecha de emisión</td><td class="valor">{{ fecha_emision.strftime("%d/%m/%Y") }}</td>
+      </tr>
+      <tr>
+        <td class="etiqueta">Teléfono móvil</td><td class="valor">{{ paciente.movil }}</td>
+        <td class="etiqueta">Teléfono fijo</td><td class="valor">{{ paciente.telefono_fijo or "—" }}</td>
+      </tr>
+    </table>
+
+    {#- 2. Antecedentes (solo los presentes, como en la ficha) + datos de salud #}
+    <h2>Antecedentes personales y datos de salud</h2>
+    {% if antecedentes %}
+    <ul class="vinetas lista">
+      {% for nombre, detalle in antecedentes %}
+      <li><span class="vineta">•</span><strong>{{ nombre }}</strong>{% if detalle %}: {{ detalle }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="vacio">No refiere antecedentes personales.</p>
+    {% endif %}
+    <table class="campos" style="margin-top: 6pt;">
+      <tr><td class="etiqueta">Fuma</td><td class="valor">{% if paciente.fuma %}Sí{% if paciente.fuma_detalle %} — {{ paciente.fuma_detalle }}{% endif %}{% else %}No{% endif %}</td></tr>
+      <tr><td class="etiqueta">Medicamentos actuales</td><td class="valor">{% if paciente.medicamentos_actuales %}Sí{% if paciente.medicamentos_actuales_detalle %} — {{ paciente.medicamentos_actuales_detalle }}{% endif %}{% else %}No{% endif %}</td></tr>
+      <tr><td class="etiqueta">Tratamiento médico actual</td><td class="valor">{{ paciente.tratamiento_medico_actual or "No refiere" }}</td></tr>
+    </table>
+
+    {#- 3. Visitas #}
+    <h2>Historial de visitas</h2>
+    {% for item in visitas %}{% set v = item.v %}
+    <div class="registro">
+      <h3>{{ v.fecha | fecha_larga }}</h3>
+      {#- ATM y ganglios se entienden solos como examen extraoral; "otros" lo aclara. #}
+      {%- set extraoral = [("ATM", v.examen_extraoral_atm), ("Ganglios", v.examen_extraoral_ganglios), ("Extraoral — otros", v.examen_extraoral_otros)] | selectattr(1) | list %}
+      {%- set examenes = item.examenes + ([v.examen_otras] if v.examen_otras else []) %}
+      {%- if v.motivo_consulta or extraoral or item.higiene or v.tejidos_blandos or examenes or v.hallazgos %}
+      <table class="campos">
+        {{ fila("Motivo de consulta", v.motivo_consulta) }}
+        {%- for etiqueta, valor in extraoral %}
+        {{ fila(etiqueta, valor) }}
+        {%- endfor %}
+        {{ fila("Higiene bucal", item.higiene) }}
+        {{ fila("Tejidos blandos", v.tejidos_blandos) }}
+        {{ fila("Exámenes complementarios", examenes | join(", ")) }}
+        {{ fila("Hallazgos", v.hallazgos) }}
+      </table>
+      {%- else %}
+      <p class="vacio">Visita sin datos clínicos registrados.</p>
+      {%- endif %}
+    </div>
+    {% else %}
+    <p class="vacio">Sin visitas registradas.</p>
+    {% endfor %}
+
+    {#- 4. Tratamientos #}
+    <h2>Tratamientos</h2>
+    {% for item in tratamientos %}{% set t = item.t %}
+    <div class="registro">
+      <h3>{{ t.tipo }}<span class="estado">· {{ item.estado }}</span></h3>
+      <table class="campos">
+        {{ fila("Fechas", t.fecha_inicio.strftime("%d/%m/%Y") ~ " — " ~ (t.fecha_fin.strftime("%d/%m/%Y") if t.fecha_fin else "sin fecha de fin")) }}
+        {{ fila("Profesional tratante", item.profesional) }}
+        {{ fila("Origen", item.origen ~ (": " ~ t.origen_detalle if t.origen_detalle else "")) }}
+        {{ fila("Dientes", item.dientes | join(", ")) }}
+        {{ fila("Notas", t.notas_relevantes) }}
+      </table>
+    </div>
+    {% else %}
+    <p class="vacio">Sin tratamientos registrados.</p>
+    {% endfor %}
+
+    {#- 5. Bitacora: seccion propia y no dentro de cada tratamiento, porque hay
+        entradas sueltas (ej. una limpieza) que no pertenecen a ninguno. #}
+    <h2>Bitácora de tratamiento</h2>
+    {% if bitacora %}
+    <table class="tabla">
+      <tr><th class="fecha">Fecha</th><th>Registro</th></tr>
+      {% for item in bitacora %}{% set e = item.e %}
+      <tr>
+        <td class="fecha">{{ e.fecha.strftime("%d/%m/%Y") }}</td>
+        <td>
+          <div class="texto">{{ e.descripcion }}</div>
+          {%- set meta = [] %}
+          {%- if e.numero_diente %}{% set _ = meta.append("Diente " ~ e.numero_diente ~ (" (" ~ item.superficie ~ ")" if item.superficie else "")) %}{% endif %}
+          {%- if item.hallazgo %}{% set _ = meta.append(item.hallazgo) %}{% endif %}
+          {%- if item.tratamiento %}{% set _ = meta.append("Tratamiento: " ~ item.tratamiento) %}{% endif %}
+          {%- if item.responsable %}{% set _ = meta.append("Registró: " ~ item.responsable) %}{% endif %}
+          {%- if meta %}<div class="meta">{{ meta | join(" · ") }}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="vacio">Sin entradas en la bitácora.</p>
+    {% endif %}
+
+    {#- 6. Observaciones: solo clinica y otra (las administrativas no se imprimen). #}
+    <h2>Observaciones</h2>
+    {% if observaciones %}
+    <table class="tabla">
+      <tr><th class="fecha">Fecha</th><th style="width: 12%;">Tipo</th><th>Observación</th></tr>
+      {% for item in observaciones %}
+      <tr>
+        <td class="fecha">{{ item.o.fecha.strftime("%d/%m/%Y") }}</td>
+        <td>{{ item.tipo }}</td>
+        <td class="texto">{{ item.o.texto }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="vacio">Sin observaciones clínicas registradas.</p>
+    {% endif %}
+
+    {#- 7. Consentimientos #}
+    <h2>Consentimientos</h2>
+    {% if consentimientos %}
+    <table class="tabla">
+      <tr><th class="fecha">Fecha</th><th style="width: 45%;">Tipo</th><th>Tratamiento vinculado</th></tr>
+      {% for item in consentimientos %}
+      <tr>
+        <td class="fecha">{{ item.c.fecha.strftime("%d/%m/%Y") }}</td>
+        <td>{{ item.tipo }}</td>
+        <td>{{ item.tratamiento or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="vacio">Sin consentimientos registrados.</p>
+    {% endif %}
+{% endblock %}
