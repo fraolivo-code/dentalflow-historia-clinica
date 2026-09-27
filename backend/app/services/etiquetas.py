@@ -2,12 +2,15 @@
 # de los valores internos de los enums.
 
 from app.enums import (
+    EstadoGeneralPuente,
     EstadoTratamiento,
     HigieneBucal,
     OrigenTratamiento,
+    RolDientePuente,
     SuperficieDental,
     TipoConsentimiento,
     TipoHallazgo,
+    TipoLesionApical,
     TipoObservacion,
 )
 
@@ -84,6 +87,20 @@ HALLAZGO = {
     TipoHallazgo.spp: "Superficie prepatogénica (SPP)",
 }
 
+
+def etiqueta_hallazgo(tipo: TipoHallazgo, superficie: SuperficieDental | None) -> str:
+    """Como etiquetaHallazgo() del frontend: "Caries (oclusal)"."""
+    base = HALLAZGO[tipo]
+    return f"{base} ({SUPERFICIE[superficie]})" if superficie else base
+
+
+def etiqueta_lesion(tipo: TipoLesionApical, raiz: str) -> str:
+    """Como etiquetaLesion() del frontend."""
+    return "Periimplantitis" if tipo == TipoLesionApical.periimplantitis else f"Lesión apical ({raiz.lower()})"
+
+
+ROL_PUENTE = {RolDientePuente.pilar: "pilar", RolDientePuente.pontico: "póntico"}
+ESTADO_PUENTE = {EstadoGeneralPuente.ok: "en buen estado", EstadoGeneralPuente.defecto: "con defecto"}
 
 # Examen complementario de la visita: (columna booleana, etiqueta del papel).
 EXAMENES_COMPLEMENTARIOS = (

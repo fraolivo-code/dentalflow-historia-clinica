@@ -42,6 +42,35 @@
   .tabla .texto { white-space: pre-line; }
   .meta { font-size: 9pt; color: var(--secundario); margin-top: 1pt; }
 
+
+  /* Odontograma: el SVG ocupa el ancho de la hoja y no se corta. El titulo y
+     la nota van en el mismo bloque, para que no queden solos al pie de una
+     hoja con el dibujo en la siguiente. */
+  .odontograma-bloque { page-break-inside: avoid; }
+  .odontograma-figura { margin: 4pt 0 6pt; }
+  .odontograma-figura svg { width: 100%; height: auto; }
+  .nota { font-size: 9pt; color: var(--secundario); margin: 0 0 4pt; }
+  .clave-azul { color: #1565c0; font-weight: 600; }
+  .clave-rojo { color: #c62828; font-weight: 600; }
+  h3.subtitulo { margin: 12pt 0 4pt; break-after: avoid; }
+  .tabla .diente { width: 12%; font-weight: 600; color: var(--primario); }
+
+  /* Periodontograma: planilla clasica, 3 sitios por cara y por diente. */
+  /* Cada levantamiento arranca en hoja nueva: sus dos arcos quedan juntos
+     bajo su fecha y ninguna hoja queda sin identificar si se separa. */
+  .levantamiento { margin: 0 0 6pt; page-break-before: always; }
+  .perio { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 0 8pt; font-size: 6.5pt; line-height: 1.15; page-break-inside: avoid; }
+  .perio td, .perio th { padding: 1pt 0; text-align: center; border-bottom: 0.4pt solid var(--borde); font-weight: 400; }
+  .perio .lbl { width: 11%; text-align: left; color: var(--secundario); padding-left: 2pt; white-space: nowrap; }
+  .perio .dientes th { font-size: 7.5pt; font-weight: 600; color: var(--primario); border-bottom: 0.75pt solid var(--secundario); }
+  .perio .dientes .lbl { font-size: 7pt; font-weight: 600; color: var(--primario); }
+  .perio .cara th { text-align: left; font-weight: 600; color: var(--acento); padding: 3pt 0 1pt 2pt; border-bottom: none; }
+  .perio .ini { border-left: 0.5pt solid var(--borde); }
+  .perio .medio { border-left: 1.2pt solid var(--secundario); }
+  .perio .sin-medir { background: #F2F4F2; }
+  .perio .sangrado { color: #B3261E; }
+  .perio .placa { color: #5B3E63; }
+  .perio-clave { font-size: 8pt; color: var(--secundario); margin: 0 0 8pt; break-after: avoid; }
   .firma { margin-top: 40pt; }
 {% endblock %}
 
@@ -49,6 +78,25 @@
   {%- if valor %}<tr><td class="etiqueta">{{ etiqueta }}</td><td class="valor">{{ valor }}</td></tr>{% endif -%}
 {%- endmacro %}
 
+
+{#- Valor de un sitio del periodontograma, segun el campo. #}
+{%- macro valor_sitio(r, campo) -%}
+  {%- if r is none -%}
+  {%- elif campo == "sangrado" -%}{% if r.sangrado %}<span class="sangrado">●</span>{% endif %}
+  {%- elif campo == "placa" -%}{% if r.placa %}<span class="placa">●</span>{% endif %}
+  {%- elif campo == "recesion_cairo" -%}{{ r.recesion_cairo.value[2:] if r.recesion_cairo else "" }}
+  {%- else -%}{{ r[campo] }}
+  {%- endif -%}
+{%- endmacro %}
+
+{%- macro filas_cara(arco, cara) -%}
+  {%- for etiqueta, campo in [("MG", "margen_gingival"), ("PS", "profundidad_sondaje"), ("NI", "nivel_insercion"), ("Rec", "recesion_mm"), ("Cairo (RT)", "recesion_cairo"), ("Sangrado", "sangrado"), ("Placa", "placa")] %}
+        <tr><th class="lbl">{{ etiqueta }}</th>
+          {%- for d in arco.dientes %}{% set i = loop.index0 %}
+          {%- for r in d[cara] %}<td class="{{ ('medio' if i == 8 else 'ini') if loop.first else '' }}{{ ' sin-medir' if not d.medido else '' }}">{{ valor_sitio(r, campo) }}</td>{% endfor %}
+          {%- endfor %}</tr>
+  {%- endfor %}
+{%- endmacro %}
 
 {% block cuerpo %}
     {#- 1. Identificacion #}
@@ -189,5 +237,74 @@
     </table>
     {% else %}
     <p class="vacio">Sin consentimientos registrados.</p>
+    {% endif %}
+
+    {#- 8. Odontograma: estado actual (hallazgos activos), como en pantalla. #}
+    <div class="odontograma-bloque">
+    <h2>Odontograma</h2>
+    <p class="nota">Estado actual al {{ fecha_emision.strftime("%d/%m/%Y") }}. <span class="clave-azul">Azul</span>: tratamientos y restauraciones existentes. <span class="clave-rojo">Rojo</span>: caries, defectos y tratamientos indicados.</p>
+    <div class="odontograma-figura">{{ odontograma.svg }}</div>
+    </div>
+
+    <h3 class="subtitulo">Hallazgos actuales por diente</h3>
+    {% if odontograma.leyenda %}
+    <table class="tabla">
+      <tr><th class="diente">Diente</th><th>Hallazgos</th></tr>
+      {% for numero, lista in odontograma.leyenda %}
+      <tr><td class="diente">{{ numero }}</td><td>{{ lista | join("; ") }}</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="vacio">Sin hallazgos registrados: todos los dientes sin marcas en el odontograma.</p>
+    {% endif %}
+
+    <h3 class="subtitulo">Hallazgos ya resueltos</h3>
+    {% if odontograma.resueltos %}
+    <table class="tabla">
+      <tr><th class="fecha">Registrado</th><th class="diente">Diente(s)</th><th>Hallazgo</th><th class="fecha">Resuelto</th></tr>
+      {% for r in odontograma.resueltos %}
+      <tr>
+        <td class="fecha">{{ r.fecha.strftime("%d/%m/%Y") }}</td>
+        <td class="diente">{{ r.dientes }}</td>
+        <td>{{ r.descripcion }}</td>
+        <td class="fecha">{{ r.resuelto.strftime("%d/%m/%Y") if r.resuelto else "—" }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="vacio">Sin hallazgos resueltos.</p>
+    {% endif %}
+
+    {#- 9. Periodontograma: todos los levantamientos, del mas antiguo al mas nuevo. #}
+    {% if periodontogramas %}
+    {% for lev in periodontogramas %}
+    <div class="levantamiento">
+      {%- if loop.first %}
+      {#- El titulo de la seccion va dentro del primer levantamiento, asi pasa
+          de hoja junto con el y no queda solo al pie de la anterior. #}
+      <h2>Periodontograma</h2>
+      <p class="perio-clave">MG: margen gingival · PS: profundidad de sondaje · NI: nivel de inserción · Rec: recesión · valores en mm. Cairo: clasificación RT de la recesión. <span class="sangrado" style="color:#B3261E">●</span> sangrado / <span style="color:#5B3E63">●</span> placa al sondaje. Columnas sombreadas: diente no medido.</p>
+      {%- endif %}
+      <h3 class="subtitulo">Levantamiento del {{ lev.fecha | fecha_larga }}</h3>
+      {% for arco in lev.arcos %}
+      <table class="perio">
+        <tr class="dientes"><th class="lbl">{{ arco.nombre }}</th>
+          {%- for d in arco.dientes %}<th colspan="3" class="{{ 'medio' if loop.index0 == 8 else 'ini' }}{{ ' sin-medir' if not d.medido else '' }}">{{ d.numero }}</th>{% endfor %}</tr>
+        <tr class="cara"><th colspan="49">Vestibular</th></tr>
+        {{ filas_cara(arco, "vestibular") }}
+        <tr class="cara"><th colspan="49">{{ arco.cara_interna }}</th></tr>
+        {{ filas_cara(arco, "interna") }}
+        <tr class="cara"><th colspan="49">Por diente</th></tr>
+        <tr><th class="lbl">Movilidad</th>
+          {%- for d in arco.dientes %}<td colspan="3" class="{{ 'medio' if loop.index0 == 8 else 'ini' }}{{ ' sin-medir' if not d.medido else '' }}">{{ d.movilidad if d.movilidad is not none else "" }}</td>{% endfor %}</tr>
+        <tr><th class="lbl">Furcación</th>
+          {%- for d in arco.dientes %}<td colspan="3" class="{{ 'medio' if loop.index0 == 8 else 'ini' }}{{ ' sin-medir' if not d.medido else '' }}">{{ (d.furcacion or "—") if d.admite_furcacion and d.medido else "" }}</td>{% endfor %}</tr>
+      </table>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <h2>Periodontograma</h2>
+    <p class="vacio">Sin levantamientos de periodontograma registrados.</p>
     {% endif %}
 {% endblock %}

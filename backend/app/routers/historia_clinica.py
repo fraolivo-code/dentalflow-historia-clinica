@@ -1,7 +1,10 @@
 # app/routers/historia_clinica.py — Documento 5 de 5 de la Etapa 5 (PDF):
 # historia clinica completa del paciente (derecho de acceso / Habeas Data).
-# Junta en un solo PDF todo lo registrado en las secciones de texto.
+# Junta en un solo PDF todo lo registrado: secciones de texto, odontograma
+# (dibujo del estado actual + leyenda + hallazgos ya resueltos) y todos los
+# levantamientos de periodontograma.
 
+from collections import defaultdict
 from datetime import date
 from uuid import UUID
 
@@ -11,11 +14,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session, requerir_dra
-from app.enums import TipoObservacion
+from app.enums import SitioPeriodontal, TipoObservacion, admite_furcacion
 from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
 from app.models.observacion import Observacion
+from app.models.odontograma import (
+    DienteAnatomia,
+    OdontogramaHallazgo,
+    OdontogramaLesionApical,
+    PuenteFijo,
+    PuenteFijoDiente,
+)
+from app.models.periodontograma import PeriodontogramaDienteResumen, PeriodontogramaRegistro
 from app.models.profesional_tratante import ProfesionalTratante
 from app.models.tratamiento import Tratamiento, TratamientoDiente
 from app.models.usuario import Usuario
@@ -24,6 +35,8 @@ from app.routers.constancias_asistencia import profesional_del_usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.services import etiquetas
 from app.services.fechas import hoy_venezuela
+from app.services.odontograma_logic import orden_anatomico
+from app.services.odontograma_svg import ARCO_INFERIOR, ARCO_SUPERIOR, odontograma_svg
 from app.services.pdf import generar_pdf
 
 # Documento clinico completo: solo dra.
@@ -46,6 +59,128 @@ def _nombre_tratamiento(t: Tratamiento) -> str:
 
 async def _todos(session: AsyncSession, consulta) -> list:
     return list((await session.execute(consulta)).scalars().all())
+
+
+async def _odontograma(session: AsyncSession, paciente_id: UUID) -> dict:
+    """Dibujo del estado actual, leyenda por diente y lo ya resuelto."""
+    hallazgos = await _todos(
+        session,
+        select(OdontogramaHallazgo)
+        .where(OdontogramaHallazgo.paciente_id == paciente_id)
+        .order_by(OdontogramaHallazgo.fecha, OdontogramaHallazgo.creado_en),
+    )
+    lesiones = await _todos(
+        session,
+        select(OdontogramaLesionApical)
+        .where(OdontogramaLesionApical.paciente_id == paciente_id)
+        .order_by(OdontogramaLesionApical.fecha, OdontogramaLesionApical.creado_en),
+    )
+    puentes = await _todos(
+        session,
+        select(PuenteFijo).where(PuenteFijo.paciente_id == paciente_id).order_by(PuenteFijo.fecha),
+    )
+    dientes_de: dict[UUID, list] = {p.id: [] for p in puentes}
+    if puentes:
+        for dp in await _todos(session, select(PuenteFijoDiente).where(PuenteFijoDiente.puente_id.in_(dientes_de))):
+            dientes_de[dp.puente_id].append(dp)
+    for lista in dientes_de.values():
+        lista.sort(key=lambda dp: orden_anatomico(dp.numero_diente))
+    raices = {d.numero_diente: list(d.nombres_raices) for d in await _todos(session, select(DienteAnatomia))}
+
+    activos = [h for h in hallazgos if not h.resuelto]
+    lesiones_activas = [l for l in lesiones if not l.resuelto]
+    puentes_activos = [(p, dientes_de[p.id]) for p in puentes if not p.resuelto]
+
+    # Leyenda: lo mismo que el titulo (tooltip) de cada diente en pantalla.
+    leyenda = defaultdict(list)
+    for p, dientes in puentes_activos:
+        secuencia = "-".join(str(dp.numero_diente) for dp in dientes)
+        for dp in dientes:
+            leyenda[dp.numero_diente].append(
+                f"Puente {secuencia} ({etiquetas.ESTADO_PUENTE[p.estado_general]}): "
+                f"{etiquetas.ROL_PUENTE[dp.rol]}, {etiquetas.HALLAZGO[dp.condicion_individual].lower()}"
+            )
+    for h in activos:
+        leyenda[h.numero_diente].append(etiquetas.etiqueta_hallazgo(h.tipo_hallazgo, h.superficie))
+    for l in lesiones_activas:
+        leyenda[l.numero_diente].append(etiquetas.etiqueta_lesion(l.tipo, l.raiz))
+
+    # Ya resueltos: el dibujo solo muestra el estado actual; esto conserva el pasado.
+    resueltos = [
+        {"fecha": h.fecha, "resuelto": h.resuelto_fecha, "dientes": str(h.numero_diente),
+         "descripcion": etiquetas.etiqueta_hallazgo(h.tipo_hallazgo, h.superficie)}
+        for h in hallazgos if h.resuelto
+    ] + [
+        {"fecha": l.fecha, "resuelto": l.resuelto_fecha, "dientes": str(l.numero_diente),
+         "descripcion": etiquetas.etiqueta_lesion(l.tipo, l.raiz)}
+        for l in lesiones if l.resuelto
+    ] + [
+        {"fecha": p.fecha, "resuelto": p.resuelto_fecha,
+         "dientes": "-".join(str(dp.numero_diente) for dp in dientes_de[p.id]),
+         "descripcion": f"Puente fijo ({etiquetas.ESTADO_PUENTE[p.estado_general]})"}
+        for p in puentes if p.resuelto
+    ]
+    resueltos.sort(key=lambda r: (r["fecha"], r["resuelto"] or date.max))
+
+    return {
+        "svg": odontograma_svg(activos, lesiones_activas, puentes_activos, raices),
+        "leyenda": [(n, leyenda[n]) for n in ARCO_SUPERIOR + ARCO_INFERIOR if leyenda[n]],
+        "resueltos": resueltos,
+    }
+
+
+# Sitios de cada cara en el orden en que se ven de frente: en los cuadrantes
+# 1 y 4 (izquierda de la hoja) lo distal queda a la izquierda; en 2 y 3, lo mesial.
+_VESTIBULAR = (SitioPeriodontal.distovestibular, SitioPeriodontal.vestibular, SitioPeriodontal.mesiovestibular)
+_PALATINO = (
+    SitioPeriodontal.distopalatino_lingual,
+    SitioPeriodontal.palatino_lingual,
+    SitioPeriodontal.mesiopalatino_lingual,
+)
+
+
+def _sitios_de_frente(numero: int, cara: tuple) -> tuple:
+    return cara if numero // 10 in (1, 4) else tuple(reversed(cara))
+
+
+async def _periodontogramas(session: AsyncSession, paciente_id: UUID) -> list[dict]:
+    """Todos los levantamientos, del mas antiguo al mas nuevo (decision 26/09/2026)."""
+    registros = await _todos(
+        session, select(PeriodontogramaRegistro).where(PeriodontogramaRegistro.paciente_id == paciente_id)
+    )
+    resumenes = await _todos(
+        session, select(PeriodontogramaDienteResumen).where(PeriodontogramaDienteResumen.paciente_id == paciente_id)
+    )
+    if not registros and not resumenes:
+        return []
+    por_visita: dict[UUID, dict] = defaultdict(lambda: {"sitios": {}, "resumen": {}})
+    for r in registros:
+        por_visita[r.visita_id]["sitios"][(r.numero_diente, r.sitio)] = r
+    for r in resumenes:
+        por_visita[r.visita_id]["resumen"][r.numero_diente] = r
+    visitas = {v.id: v for v in await _todos(session, select(Visita).where(Visita.id.in_(por_visita)))}
+
+    levantamientos = []
+    for visita_id in sorted(por_visita, key=lambda v: (visitas[v].fecha, visitas[v].creado_en)):
+        datos = por_visita[visita_id]
+        arcos = []
+        for nombre, cara_interna, dientes in (("Arco superior", "Palatino", ARCO_SUPERIOR),
+                                               ("Arco inferior", "Lingual", ARCO_INFERIOR)):
+            columnas = []
+            for n in dientes:
+                resumen = datos["resumen"].get(n)
+                columnas.append({
+                    "numero": n,
+                    "medido": resumen is not None or any((n, s) in datos["sitios"] for s in SitioPeriodontal),
+                    "vestibular": [datos["sitios"].get((n, s)) for s in _sitios_de_frente(n, _VESTIBULAR)],
+                    "interna": [datos["sitios"].get((n, s)) for s in _sitios_de_frente(n, _PALATINO)],
+                    "movilidad": resumen.movilidad if resumen else None,
+                    "furcacion": resumen.furcacion.value if resumen and resumen.furcacion else None,
+                    "admite_furcacion": admite_furcacion(n),
+                })
+            arcos.append({"nombre": nombre, "cara_interna": cara_interna, "dientes": columnas})
+        levantamientos.append({"fecha": visitas[visita_id].fecha, "arcos": arcos})
+    return levantamientos
 
 
 @router.get("/pacientes/{paciente_id}/pdf/historia-completa")
@@ -137,9 +272,14 @@ async def pdf_historia_completa(
         .order_by(Consentimiento.fecha, Consentimiento.creado_en),
     )
 
+    odontograma = await _odontograma(session, paciente_id)
+    periodontogramas = await _periodontogramas(session, paciente_id)
+
     pdf = await generar_pdf(
         "historia_clinica.html",
         {
+            "odontograma": odontograma,
+            "periodontogramas": periodontogramas,
             "profesional": profesional,
             "paciente": paciente,
             "edad": _edad(paciente.fecha_nacimiento, hoy) if paciente.fecha_nacimiento else None,
