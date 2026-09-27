@@ -1,0 +1,140 @@
+{% extends "_documento.html" %}
+
+{#- Documento 4 de 5: formulario en blanco para llenar a mano mientras la Dra.
+    sigue en papel. Mismos campos que la ficha digital (paciente +
+    antecedentes), para transcribir 1 a 1. Sin datos de paciente y sin firma. #}
+{% block titulo %}Formulario de ingreso{% endblock %}
+
+{% block estilos %}
+  @page { margin: 1.8cm 2.2cm 1.6cm; }
+  /* Sin paciente que nombrar: la pagina 2 se identifica con el documento. */
+  @page { @top-left { content: "Formulario de ingreso — continuación"; } }
+  body { line-height: 1.3; font-size: 10.5pt; }
+  .membrete { margin-bottom: 16pt; }
+  h1 { margin-bottom: 4pt; }
+  .instruccion { text-align: center; font-size: 9.5pt; color: var(--secundario); margin: 0 0 8pt; }
+
+  h2 { font-family: "Fraunces", serif; font-weight: 600; font-size: 13pt; color: var(--primario); margin: 14pt 0 2pt; padding-bottom: 3pt; border-bottom: 1pt solid var(--acento); }
+  .seccion { page-break-inside: avoid; }
+
+  /* Renglones para escribir a mano: ~8,5 mm de alto (mas que una hoja rayada
+     comun), comodo para letra manuscrita. La etiqueta ocupa lo justo y la
+     linea el resto. */
+  .renglon { width: 100%; border-collapse: collapse; }
+  .renglon td { height: 24pt; vertical-align: bottom; padding: 0 0 2pt; }
+  .renglon .etiqueta { width: 1%; white-space: nowrap; padding-right: 6pt; color: var(--texto); }
+  .renglon .linea { border-bottom: 0.75pt solid var(--secundario); }
+  .renglon .separador { width: 16pt; }
+  .pista { font-size: 8pt; color: var(--secundario); }
+
+  /* Casilleros Si / No. */
+  .casilla { display: inline-block; width: 9pt; height: 9pt; border: 0.9pt solid var(--texto); vertical-align: -1pt; margin: 0 3pt 0 0; }
+  .opcion { white-space: nowrap; margin-right: 10pt; }
+  .pregunta .opcion:first-child { margin-left: 8pt; }
+
+  .antecedentes { width: 100%; border-collapse: collapse; margin-top: 4pt; }
+  .antecedentes th { font-size: 7.5pt; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secundario); font-weight: 400; text-align: left; padding: 0 0 2pt; }
+  .antecedentes td { height: 24pt; vertical-align: bottom; padding: 0 0 3pt; border-bottom: 0.5pt solid var(--borde); }
+  .antecedentes .nombre { width: 26%; }
+  .antecedentes .si-no { width: 20%; }
+  .antecedentes .detalle { width: 54%; }
+  .antecedentes .detalle .linea-detalle { border-bottom: 0.75pt solid var(--secundario); height: 12pt; margin-left: 4pt; }
+  .antecedentes .detalle-fila { width: 100%; border-collapse: collapse; }
+  .antecedentes .detalle-fila td { border: none; height: auto; padding: 0; }
+  .antecedentes .detalle-fila .pista { width: 1%; white-space: nowrap; }
+
+  .renglon-libre { height: 24pt; border-bottom: 0.75pt solid var(--secundario); }
+  /* Renglon extra de detalle (Operaciones): fila propia debajo, sin separador
+     entre ambas, para que nombre y casilleros queden en el primer renglon. */
+  .antecedentes tr.con-extra td { border-bottom: none; }
+{% endblock %}
+
+{% macro renglon(etiqueta, pista=None) -%}
+    <table class="renglon"><tr>
+      <td class="etiqueta">{{ etiqueta }}{% if pista %} <span class="pista">{{ pista }}</span>{% endif %}</td>
+      <td class="linea"></td>
+    </tr></table>
+{%- endmacro %}
+
+{#- Renglon sin etiqueta: continuacion del campo de arriba, a todo el ancho. #}
+{% macro renglon_libre() -%}
+    <div class="renglon-libre"></div>
+{%- endmacro %}
+
+{% macro renglon_doble(etiqueta1, etiqueta2, pista1=None, pista2=None) -%}
+    <table class="renglon"><tr>
+      <td class="etiqueta">{{ etiqueta1 }}{% if pista1 %} <span class="pista">{{ pista1 }}</span>{% endif %}</td>
+      <td class="linea"></td>
+      <td class="separador"></td>
+      <td class="etiqueta">{{ etiqueta2 }}{% if pista2 %} <span class="pista">{{ pista2 }}</span>{% endif %}</td>
+      <td class="linea"></td>
+    </tr></table>
+{%- endmacro %}
+
+{% macro si_no() -%}
+    <span class="pregunta"><span class="opcion"><span class="casilla"></span>Sí</span><span class="opcion"><span class="casilla"></span>No</span></span>
+{%- endmacro %}
+
+{% block cuerpo %}
+    <p class="instruccion">Complete con letra clara. Marque con una X la opción que corresponda.</p>
+
+    <div class="seccion">
+      <h2>Datos personales</h2>
+      {{ renglon("Nombre completo:") }}
+      {{ renglon_doble("Cédula:", "Fecha de nacimiento:", pista2="(dd/mm/aaaa)") }}
+      {{ renglon_doble("Teléfono móvil:", "Teléfono fijo:") }}
+      {{ renglon("Correo electrónico:") }}
+      {{ renglon("Dirección:") }}
+      {{ renglon_libre() }}
+      {{ renglon("Empresa / profesión / cargo:") }}
+      {{ renglon("Referido por:") }}
+    </div>
+
+    <div class="seccion">
+      <h2>Antecedentes personales</h2>
+      <table class="antecedentes">
+        <tr><th class="nombre">Antecedente</th><th class="si-no">Marque</th><th class="detalle">Detalle</th></tr>
+        {% for nombre, pista, renglones in antecedentes %}
+        <tr{% if renglones > 1 %} class="con-extra"{% endif %}>
+          <td class="nombre">{{ nombre }}</td>
+          <td class="si-no">{{ si_no() }}</td>
+          <td class="detalle">
+            {%- if pista %}
+            <table class="detalle-fila"><tr><td class="pista">{{ pista }}</td><td><div class="linea-detalle"></div></td></tr></table>
+            {%- endif %}
+          </td>
+        </tr>
+        {%- for _ in range(renglones - 1) %}
+        <tr{% if not loop.last %} class="con-extra"{% endif %}>
+          <td></td><td></td>
+          <td class="detalle"><div class="linea-detalle"></div></td>
+        </tr>
+        {%- endfor %}
+        {% endfor %}
+      </table>
+    </div>
+
+    <div class="seccion">
+      <h2>Hábitos y medicación</h2>
+      <table class="renglon"><tr>
+        <td class="etiqueta">¿Fuma? {{ si_no() }} <span class="pista">¿Cuánto?</span></td>
+        <td class="linea"></td>
+      </tr></table>
+      <table class="renglon"><tr>
+        <td class="etiqueta">¿Toma medicamentos actualmente? {{ si_no() }} <span class="pista">¿Cuáles?</span></td>
+        <td class="linea"></td>
+      </tr></table>
+      {{ renglon_libre() }}
+      {{ renglon("Tratamiento médico actual:") }}
+      {{ renglon_libre() }}
+    </div>
+
+    <div class="seccion motivo">
+      <h2>Motivo de consulta</h2>
+      {% for _ in range(8) %}
+      {{ renglon_libre() }}
+      {% endfor %}
+    </div>
+{% endblock %}
+
+{% block firma %}{% endblock %}

@@ -65,6 +65,8 @@
     {% block cuerpo %}{% endblock %}
   </section>
 
+  {#- Los formularios en blanco (formulario de ingreso) no llevan firma. #}
+  {% block firma %}
   <footer class="firma">
     <div class="firma-linea"></div>
     <p class="firma-nombre">{{ profesional.nombre }}</p>
@@ -73,5 +75,6 @@
     <p class="firma-detalle">N.° de colegiatura {{ profesional.numero_colegiatura }}</p>
     {% endif %}
   </footer>
+  {% endblock %}
 </body>
 </html>
