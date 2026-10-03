@@ -1,8 +1,11 @@
+import logging
+import os
+import secrets
 from collections.abc import AsyncGenerator
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,3 +65,25 @@ def requerir_rol(*roles: RolUsuario):
 
 
 requerir_dra = requerir_rol(RolUsuario.dra)
+
+
+logger = logging.getLogger(__name__)
+
+LARGO_MINIMO_CLAVE_SERVICIO = 32
+
+
+async def requerir_clave_servicio(x_api_key: str | None = Header(default=None)) -> None:
+    """
+    Acceso de servicio de Alma (Etapa 6): compara X-Api-Key con VINCULACION_API_KEY.
+    Solo se usa en los endpoints /interno/vinculacion; no crea usuarios ni JWT.
+    Sin la variable (o con menos de 32 caracteres) la funcion esta apagada: 503.
+    """
+    clave = os.getenv("VINCULACION_API_KEY", "")
+    if len(clave) < LARGO_MINIMO_CLAVE_SERVICIO:
+        if clave:
+            logger.error("VINCULACION_API_KEY tiene menos de 32 caracteres: funcion apagada")
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Vinculacion no disponible")
+    if x_api_key is None or not secrets.compare_digest(
+        x_api_key.encode("utf-8"), clave.encode("utf-8")
+    ):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Clave de servicio invalida")

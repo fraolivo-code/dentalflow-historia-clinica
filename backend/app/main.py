@@ -22,6 +22,7 @@ from app.routers import (
     tratamientos,
     usuarios,
     visitas,
+    vinculacion,
 )
 
 app = FastAPI(title="Historia Clinica Digital — Fase 2")
@@ -55,6 +56,7 @@ app.include_router(bitacora.router)
 app.include_router(observaciones.router)
 app.include_router(pdf.router)
 app.include_router(historia_clinica.router)
+app.include_router(vinculacion.router)
 
 
 @app.get("/health", tags=["health"])

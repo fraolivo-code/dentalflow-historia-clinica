@@ -7,10 +7,11 @@
 from datetime import date
 
 from sqlalchemy import Boolean, Date, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.db import Base
 from app.models.common import AuditMixin, UUIDPk
+from app.services.movil import normalizar_movil
 
 
 class Paciente(Base, UUIDPk, AuditMixin):
@@ -22,6 +23,10 @@ class Paciente(Base, UUIDPk, AuditMixin):
     telefono_fijo: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # Llave de vinculacion con Alma (fase1-whatsapp-bot): mismo numero de WhatsApp.
     movil: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Etapa 6: movil en formato 58XXXXXXXXXX (o None si no encaja), para cruzar con
+    # el numero de WhatsApp de Alma. Se recalcula solo al asignar `movil` (ver
+    # _calcular_movil_normalizado); no es unico.
+    movil_normalizado: Mapped[str | None] = mapped_column(String(15), nullable=True, index=True)
     nombre_completo: Mapped[str] = mapped_column(String(300), nullable=False)
     # Opcional (25/09/2026): se imprime en la constancia de asistencia si existe.
     # Sin UNIQUE — la identificacion del sistema sigue siendo numero_historia.
@@ -50,3 +55,9 @@ class Paciente(Base, UUIDPk, AuditMixin):
     # (Cloudflare R2, pendiente de credenciales — ver especificacion seccion 1.1).
     documento_historia_anterior: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     foto: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
+    @validates("movil")
+    def _calcular_movil_normalizado(self, _clave: str, valor: str) -> str:
+        # Unico lugar donde se calcula: cubre la creacion y cada edicion de `movil`.
+        self.movil_normalizado = normalizar_movil(valor)
+        return valor

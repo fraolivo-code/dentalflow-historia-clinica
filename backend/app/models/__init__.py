@@ -6,6 +6,7 @@ from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
 from app.models.constancia_asistencia import ConstanciaAsistencia
+from app.models.consulta_vinculacion import ConsultaVinculacion
 from app.models.indicacion import IndicacionTratamiento, PlantillaIndicacion
 from app.models.observacion import Observacion
 from app.models.odontograma import (
@@ -28,6 +29,7 @@ __all__ = [
     "BitacoraTratamiento",
     "Consentimiento",
     "ConstanciaAsistencia",
+    "ConsultaVinculacion",
     "DienteAnatomia",
     "IndicacionTratamiento",
     "Medicamento",
