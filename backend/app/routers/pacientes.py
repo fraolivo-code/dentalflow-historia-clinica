@@ -5,12 +5,19 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import ROLES_ACCESO_TOTAL, get_current_usuario, get_session, requerir_dra
+from app.deps import ROLES_ACCESO_TOTAL, get_current_usuario, get_session, requerir_acceso_total
 from app.models.common import ahora
 from app.models.paciente import Paciente
+from app.models.paciente_cambio import PacienteCambio
 from app.models.usuario import Usuario
-from app.schemas.paciente import PacienteCreate, PacienteRead, PacienteUpdate
-from app.services import correlativos
+from app.schemas.paciente import (
+    NumeroHistoriaCorreccion,
+    PacienteCambioRead,
+    PacienteCreate,
+    PacienteRead,
+    PacienteUpdate,
+)
+from app.services import auditoria, correlativos, paciente_cambios
 
 # Paciente basico: accesible para dra y asistente por igual (ambas necesitan
 # poder ver/crear pacientes) — solo exige estar autenticado, sin rol especifico.
@@ -86,9 +93,7 @@ async def obtener_paciente(paciente_id: UUID, session: AsyncSession = Depends(ge
     return paciente
 
 
-@router.patch(
-    "/{paciente_id}", response_model=PacienteRead, dependencies=[Depends(requerir_dra)]
-)
+@router.patch("/{paciente_id}", response_model=PacienteRead)
 async def actualizar_paciente(
     paciente_id: UUID,
     datos: PacienteUpdate,
@@ -96,19 +101,97 @@ async def actualizar_paciente(
     usuario: Usuario = Depends(get_current_usuario),
 ):
     """
-    Correccion parcial de los datos de alta (25/09/2026): solo dra, aunque
-    crear y ver pacientes lo puede hacer tambien asistente.
+    Correccion parcial de los datos del paciente (04/10/2026). Autorizacion por
+    campo: el acceso total corrige todo; la asistente, solo los datos de
+    contacto (cualquier otro campo, o uno sin clasificar, -> 403 y no se aplica
+    nada). Cada campo que realmente cambia queda en paciente_cambio.
+    numero_historia no pasa por aqui: tiene su propio endpoint.
     """
-    paciente = await obtener_paciente_o_404(paciente_id, session)
     cambios = datos.model_dump(exclude_unset=True)
+    if usuario.rol not in ROLES_ACCESO_TOTAL and not paciente_cambios.solo_contacto(cambios):
+        raise HTTPException(403, "Solo puede corregir los datos de contacto del paciente.")
+    paciente = await obtener_paciente_o_404(paciente_id, session)
+    realizados = []
     for campo, valor in cambios.items():
-        setattr(paciente, campo, valor)
+        anterior = getattr(paciente, campo)
+        if anterior != valor:
+            realizados.append((campo, anterior, valor))
+            setattr(paciente, campo, valor)
+    if realizados:
+        paciente.actualizado_en = ahora()
+        paciente.actualizado_por = usuario.id
+        paciente_cambios.registrar(session, paciente.id, usuario.id, realizados)
+        await session.commit()
+        await session.refresh(paciente)
+    return paciente
+
+
+@router.post("/{paciente_id}/numero-historia", response_model=PacienteRead)
+async def corregir_numero_historia(
+    paciente_id: UUID,
+    datos: NumeroHistoriaCorreccion,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(requerir_acceso_total),
+):
+    """Correccion controlada del numero visible (el paciente se identifica por su UUID)."""
+    if datos.confirmo is not True:
+        raise HTTPException(422, "Debe confirmar la corrección del número.")
+    paciente = await obtener_paciente_o_404(paciente_id, session)
+    try:
+        nuevo = correlativos.normalizar_manual(
+            datos.numero_nuevo, await correlativos.ancho_configurado(session)
+        )
+    except correlativos.NumeroInvalido as error:
+        raise HTTPException(422, str(error))
+    actual = paciente.numero_historia
+    if nuevo == actual or (actual.isdecimal() and int(nuevo) == int(actual)):
+        raise HTTPException(422, "El número nuevo es igual al actual.")
+    if int(nuevo) in await correlativos.numeros_en_uso(session):
+        raise HTTPException(409, f"Ya existe una historia con el número {nuevo}.")
+    paciente.numero_historia = nuevo
     paciente.actualizado_en = ahora()
     paciente.actualizado_por = usuario.id
-
-    await session.commit()
+    paciente_cambios.registrar(
+        session, paciente.id, usuario.id, [("numero_historia", actual, nuevo)]
+    )
+    auditoria.registrar(
+        session, "numero_historia_corregido", actor_id=usuario.id, detalle=f"{actual} -> {nuevo}"
+    )
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(409, f"Ya existe una historia con el número {nuevo}.")
     await session.refresh(paciente)
     return paciente
+
+
+@router.get(
+    "/{paciente_id}/cambios",
+    response_model=list[PacienteCambioRead],
+    dependencies=[Depends(requerir_acceso_total)],
+)
+async def listar_cambios(paciente_id: UUID, session: AsyncSession = Depends(get_session)):
+    """Historial de correcciones, del mas reciente al mas antiguo."""
+    await obtener_paciente_o_404(paciente_id, session)
+    filas = await session.execute(
+        select(PacienteCambio, Usuario.nombre)
+        .outerjoin(Usuario, Usuario.id == PacienteCambio.actor_id)
+        .where(PacienteCambio.paciente_id == paciente_id)
+        .order_by(PacienteCambio.fecha.desc(), PacienteCambio.campo)
+    )
+    return [
+        PacienteCambioRead(
+            id=c.id,
+            fecha=c.fecha,
+            actor_nombre=nombre,
+            campo=c.campo,
+            etiqueta=paciente_cambios.etiqueta(c.campo),
+            valor_anterior=c.valor_anterior,
+            valor_nuevo=c.valor_nuevo,
+        )
+        for c, nombre in filas
+    ]
 
 
 async def obtener_paciente_o_404(paciente_id: UUID, session: AsyncSession) -> Paciente:

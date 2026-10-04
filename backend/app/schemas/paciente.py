@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
@@ -150,3 +150,19 @@ class PacienteRead(AuditRead):
     foto: str | None
     seguro: str | None
     paciente_desde: int
+
+
+class NumeroHistoriaCorreccion(BaseModel):
+    numero_nuevo: str
+    confirmo: bool = False
+
+
+class PacienteCambioRead(BaseModel):
+    id: UUID
+    fecha: datetime
+    # Nombre de quien hizo el cambio (no su id).
+    actor_nombre: str | None
+    campo: str
+    etiqueta: str
+    valor_anterior: str | None
+    valor_nuevo: str | None

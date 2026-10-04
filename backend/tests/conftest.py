@@ -41,6 +41,7 @@ from app.models import (  # noqa: E402
     ConfiguracionConsultorio,
     ConsultaVinculacion,
     Paciente,
+    PacienteCambio,
     TokenRecuperacion,
     Usuario,
 )
@@ -61,6 +62,7 @@ async def session_factory():
             tables=[
                 Usuario.__table__,
                 Paciente.__table__,
+                PacienteCambio.__table__,
                 ConsultaVinculacion.__table__,
                 TokenRecuperacion.__table__,
                 AuditoriaUsuario.__table__,

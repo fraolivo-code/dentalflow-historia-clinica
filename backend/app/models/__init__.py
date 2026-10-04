@@ -19,6 +19,7 @@ from app.models.odontograma import (
     PuenteFijoDiente,
 )
 from app.models.paciente import Paciente
+from app.models.paciente_cambio import PacienteCambio
 from app.models.periodontograma import PeriodontogramaDienteResumen, PeriodontogramaRegistro
 from app.models.profesional_tratante import ProfesionalTratante
 from app.models.receta import Medicamento, Receta, RecetaMedicamento
@@ -45,6 +46,7 @@ __all__ = [
     "PuenteFijo",
     "PuenteFijoDiente",
     "Paciente",
+    "PacienteCambio",
     "PeriodontogramaDienteResumen",
     "PeriodontogramaRegistro",
     "PlantillaIndicacion",
