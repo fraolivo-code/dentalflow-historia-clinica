@@ -105,7 +105,7 @@
         <td class="etiqueta">Paciente</td><td class="valor" colspan="3"><strong class="paciente">{{ paciente.nombre_completo }}</strong></td>
       </tr>
       <tr>
-        <td class="etiqueta">N.° de historia</td><td class="valor">{{ paciente.numero_historia }}</td>
+        <td class="etiqueta">N.° de historia</td><td class="valor">{{ paciente.numero_historia }} · Paciente desde {{ paciente.paciente_desde }}</td>
         <td class="etiqueta">C.I.</td><td class="valor">{{ paciente.cedula or "—" }}</td>
       </tr>
       <tr>

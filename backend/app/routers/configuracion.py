@@ -15,8 +15,13 @@ from app.deps import get_session, requerir_acceso_total
 from app.models.common import a_utc, ahora
 from app.models.configuracion_consultorio import ID_UNICO, ConfiguracionConsultorio
 from app.models.usuario import Usuario
-from app.schemas.configuracion import PortadaRead, PortadaUpdate
-from app.services import auditoria
+from app.schemas.configuracion import (
+    NumeracionRead,
+    NumeracionUpdate,
+    PortadaRead,
+    PortadaUpdate,
+)
+from app.services import auditoria, correlativos
 from app.services.imagen_portada import MAX_BYTES, ImagenInvalida, procesar
 
 router = APIRouter(prefix="/configuracion", tags=["configuracion"])
@@ -145,3 +150,47 @@ async def quitar_imagen(
         auditoria.registrar(session, "imagen_portada_eliminada", actor_id=actor.id)
     await session.commit()
     return _leer(config)
+
+
+async def _leer_numeracion(session: AsyncSession, config: ConfiguracionConsultorio) -> NumeracionRead:
+    return NumeracionRead(
+        siguiente_numero=await correlativos.siguiente_sin_consumir(session),
+        numero_ancho=config.numero_ancho,
+        mayor_existente=await correlativos.mayor_existente(session),
+    )
+
+
+@router.get("/numeracion", response_model=NumeracionRead)
+async def leer_numeracion(
+    session: AsyncSession = Depends(get_session),
+    _actor: Usuario = Depends(requerir_acceso_total),
+):
+    return await _leer_numeracion(session, await _obtener(session))
+
+
+@router.put("/numeracion", response_model=NumeracionRead)
+async def configurar_numeracion(
+    datos: NumeracionUpdate,
+    session: AsyncSession = Depends(get_session),
+    actor: Usuario = Depends(requerir_acceso_total),
+):
+    mayor = await correlativos.mayor_existente(session)
+    if datos.siguiente_numero <= mayor:
+        raise HTTPException(
+            409,
+            f"No se puede retroceder: ya existe la historia {mayor} y el siguiente número "
+            f"debe ser mayor que {mayor}.",
+        )
+    config = await _obtener(session)
+    config.numero_ancho = datos.numero_ancho
+    config.actualizado_por = actor.id
+    config.actualizado_en = ahora()
+    await correlativos.fijar_siguiente(session, datos.siguiente_numero)
+    auditoria.registrar(
+        session,
+        "numeracion_configurada",
+        actor_id=actor.id,
+        detalle=f"siguiente={datos.siguiente_numero}, ancho={datos.numero_ancho}",
+    )
+    await session.commit()
+    return await _leer_numeracion(session, config)

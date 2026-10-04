@@ -6,10 +6,21 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from app.schemas.common import AuditRead
 
 
+def _limpiar_seguro(v: str | None) -> str | None:
+    if v is None:
+        return None
+    v = v.strip()
+    if len(v) > 120:
+        raise ValueError("El seguro no puede superar 120 caracteres")
+    return v or None
+
+
 class PacienteCreate(BaseModel):
-    # numero_historia y creado_por ya NO se aceptan del cliente (19/09/2026):
-    # numero_historia se genera server-side (ver services/correlativos.py),
-    # creado_por se deriva del usuario autenticado (JWT), nunca del body.
+    # creado_por no se acepta del cliente: se deriva del usuario autenticado (JWT).
+    # numero_historia es opcional (04/10/2026): vacio -> lo asigna el sistema
+    # (services/correlativos.py); con valor -> historia vieja, solo cuentas con
+    # acceso total (lo valida el router).
+    numero_historia: str | None = None
     telefono_fijo: str | None = None
     movil: str
     nombre_completo: str
@@ -32,6 +43,17 @@ class PacienteCreate(BaseModel):
     # especificacion seccion 1.1, pendiente de credenciales de Cloudflare R2).
     documento_historia_anterior: str | None = None
     foto: str | None = None
+    seguro: str | None = None
+
+    @field_validator("numero_historia")
+    @classmethod
+    def _numero_vacio_es_nulo(cls, v: str | None) -> str | None:
+        return (v or "").strip() or None
+
+    @field_validator("seguro")
+    @classmethod
+    def _seguro_limpio(cls, v: str | None) -> str | None:
+        return _limpiar_seguro(v)
 
 
 # Columnas NOT NULL de paciente: en un PATCH pueden cambiar, pero no borrarse.
@@ -50,7 +72,7 @@ class PacienteUpdate(BaseModel):
     Correccion de los datos de alta (PATCH /pacientes/{id}, 25/09/2026) —
     solo dra. Mismos campos que PacienteCreate, todos opcionales:
     actualizacion parcial con exclude_unset en el router. numero_historia no
-    se edita (lo genera el sistema). Los opcionales aceptan null (borran el
+    se edita (queda fijo desde el alta). Los opcionales aceptan null (borran el
     dato); los obligatorios no.
     """
 
@@ -73,6 +95,12 @@ class PacienteUpdate(BaseModel):
     historia_origen: str | None = None
     documento_historia_anterior: str | None = None
     foto: str | None = None
+    seguro: str | None = None
+
+    @field_validator("seguro")
+    @classmethod
+    def _seguro_limpio(cls, v: str | None) -> str | None:
+        return _limpiar_seguro(v)
 
     @field_validator("nombre_completo", "movil", "referido_por", "cedula")
     @classmethod
@@ -120,3 +148,5 @@ class PacienteRead(AuditRead):
     historia_origen: str | None
     documento_historia_anterior: str | None
     foto: str | None
+    seguro: str | None
+    paciente_desde: int

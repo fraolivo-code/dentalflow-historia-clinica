@@ -23,6 +23,8 @@ class ConfiguracionConsultorio(Base):
     frase: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # deferred: la portada se lee en cada inicio de sesion y no necesita los bytes.
     imagen: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
+    # Cantidad de digitos (con ceros a la izquierda) del numero de historia.
+    numero_ancho: Mapped[int] = mapped_column(Integer, nullable=False, default=4, server_default="4")
     imagen_tipo: Mapped[str | None] = mapped_column(String(20), nullable=True)
     imagen_actualizada_en: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

@@ -55,6 +55,17 @@ class Paciente(Base, UUIDPk, AuditMixin):
     # (Cloudflare R2, pendiente de credenciales — ver especificacion seccion 1.1).
     documento_historia_anterior: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     foto: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Texto libre y opcional (04/10/2026); sin lista de aseguradoras.
+    seguro: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    @property
+    def paciente_desde(self) -> int:
+        """Anio de la primera consulta real; si falta, el de la creacion (calculado)."""
+        if self.fecha_primera_consulta_real is not None:
+            return self.fecha_primera_consulta_real.year
+        if self.creado_en is not None:
+            return self.creado_en.year
+        return self.fecha_registro.year
 
     @validates("movil")
     def _calcular_movil_normalizado(self, _clave: str, valor: str) -> str:
