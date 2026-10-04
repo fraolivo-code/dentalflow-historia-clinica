@@ -9,8 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.deps import ROLES_ACCESO_TOTAL, get_session, requerir_acceso_total
 from app.enums import RolUsuario
 from app.models.common import ahora
+from app.models.profesional_tratante import ProfesionalTratante
 from app.models.usuario import Usuario
-from app.schemas.usuario import ReinicioClaveRespuesta, UsuarioCreate, UsuarioRead, UsuarioUpdate
+from app.schemas.usuario import (
+    ProfesionalVinculadoRead,
+    ReinicioClaveRespuesta,
+    UsuarioCreate,
+    UsuarioRead,
+    UsuarioUpdate,
+)
 from app.security import hash_password
 from app.services import auditoria
 from app.services.passwords import (
@@ -67,6 +74,20 @@ async def quedaria_sin_acceso_total(session: AsyncSession, objetivo: Usuario) ->
     return (otros or 0) == 0
 
 
+async def _con_profesional(session: AsyncSession, usuarios: list[Usuario]) -> list[UsuarioRead]:
+    """UsuarioRead con el profesional vinculado (profesional_tratante.usuario_id)."""
+    filas = await session.execute(
+        select(ProfesionalTratante.usuario_id, ProfesionalTratante.id, ProfesionalTratante.nombre).where(
+            ProfesionalTratante.usuario_id.in_([u.id for u in usuarios])
+        )
+    )
+    vinculados = {uid: ProfesionalVinculadoRead(id=pid, nombre=nombre) for uid, pid, nombre in filas}
+    return [
+        UsuarioRead.model_validate(u).model_copy(update={"profesional": vinculados.get(u.id)})
+        for u in usuarios
+    ]
+
+
 @router.post("", response_model=UsuarioRead, status_code=201)
 async def crear_usuario(
     datos: UsuarioCreate,
@@ -119,7 +140,7 @@ async def crear_usuario(
 @router.get("", response_model=list[UsuarioRead])
 async def listar_usuarios(session: AsyncSession = Depends(get_session)):
     resultado = await session.execute(select(Usuario).order_by(Usuario.creado_en))
-    return resultado.scalars().all()
+    return await _con_profesional(session, list(resultado.scalars().all()))
 
 
 @router.get("/{usuario_id}", response_model=UsuarioRead)
@@ -127,7 +148,7 @@ async def obtener_usuario(usuario_id: UUID, session: AsyncSession = Depends(get_
     usuario = await session.get(Usuario, usuario_id)
     if usuario is None:
         raise HTTPException(404, "Usuario no encontrado")
-    return usuario
+    return (await _con_profesional(session, [usuario]))[0]
 
 
 @router.patch("/{usuario_id}", response_model=UsuarioRead)
@@ -197,15 +218,78 @@ async def actualizar_usuario(
         usuario.email = email
         auditoria.registrar(session, "email_cambiado", actor_id=actor.id, objetivo_id=usuario.id)
 
-    if cambia_activo or cambia_rol or cambia_email:
+    cambia_profesional = False
+    if "profesional_tratante_id" in enviados:
+        cambia_profesional = await _vincular_profesional(
+            session, usuario, datos.profesional_tratante_id, actor
+        )
+
+    if cambia_activo or cambia_rol or cambia_email or cambia_profesional:
         usuario.actualizado_en = ahora()
         try:
             await session.commit()
         except IntegrityError:
             await session.rollback()
-            raise HTTPException(409, "Ya existe un usuario con ese correo.")
+            raise HTTPException(409, "Ya existe un usuario con ese correo o ese profesional ya está vinculado.")
         await session.refresh(usuario)
-    return usuario
+    return (await _con_profesional(session, [usuario]))[0]
+
+
+async def _vincular_profesional(
+    session: AsyncSession, usuario: Usuario, profesional_id: UUID | None, actor: Usuario
+) -> bool:
+    """
+    Fija (o quita, con None) el profesional que firma los documentos de la
+    cuenta. Un profesional solo puede estar vinculado a un usuario, y un
+    usuario a un profesional: vincular otro desvincula el anterior. True si algo cambio.
+    """
+    actual = (
+        await session.execute(
+            select(ProfesionalTratante).where(ProfesionalTratante.usuario_id == usuario.id)
+        )
+    ).scalar_one_or_none()
+
+    if profesional_id is None:
+        if actual is None:
+            return False
+        actual.usuario_id = None
+        auditoria.registrar(
+            session,
+            "profesional_desvinculado",
+            actor_id=actor.id,
+            objetivo_id=usuario.id,
+            detalle=actual.nombre[:150],
+        )
+        return True
+
+    nuevo = await session.get(ProfesionalTratante, profesional_id)
+    if nuevo is None:
+        raise HTTPException(404, "Profesional tratante no encontrado")
+    if nuevo.usuario_id is not None and nuevo.usuario_id != usuario.id:
+        raise HTTPException(409, "Ese profesional ya está vinculado a otro usuario.")
+    if actual is not None and actual.id == nuevo.id:
+        return False
+
+    if actual is not None:
+        actual.usuario_id = None
+        # El indice unico exige liberar el vinculo anterior antes de fijar el nuevo.
+        await session.flush()
+        auditoria.registrar(
+            session,
+            "profesional_desvinculado",
+            actor_id=actor.id,
+            objetivo_id=usuario.id,
+            detalle=actual.nombre[:150],
+        )
+    nuevo.usuario_id = usuario.id
+    auditoria.registrar(
+        session,
+        "profesional_vinculado",
+        actor_id=actor.id,
+        objetivo_id=usuario.id,
+        detalle=nuevo.nombre[:150],
+    )
+    return True
 
 
 @router.post("/{usuario_id}/reiniciar-clave", response_model=ReinicioClaveRespuesta)

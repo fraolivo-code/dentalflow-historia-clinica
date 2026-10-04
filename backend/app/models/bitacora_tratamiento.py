@@ -20,7 +20,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, Enum, ForeignKey, SmallInteger, Text
+from sqlalchemy import Date, Enum, ForeignKey, SmallInteger, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -58,3 +58,22 @@ class BitacoraTratamiento(Base, UUIDPk, AuditMixin):
         Enum(SuperficieDental, name="superficie_dental", native_enum=True, create_type=False),
         nullable=True,
     )
+
+
+class BitacoraDiente(Base, UUIDPk, AuditMixin):
+    """
+    Un diente de una entrada de bitacora (migracion 0022, 04/10/2026): una fila
+    por diente. La columna `bitacora_tratamiento.numero_diente` se conserva por
+    compatibilidad y guarda el primer diente de la entrada (o nulo).
+    """
+
+    __tablename__ = "bitacora_diente"
+
+    bitacora_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bitacora_tratamiento.id"), nullable=False, index=True
+    )
+    numero_diente: Mapped[int] = mapped_column(
+        SmallInteger, ForeignKey("diente_anatomia.numero_diente"), nullable=False, index=True
+    )
+
+    __table_args__ = (UniqueConstraint("bitacora_id", "numero_diente", name="uq_bitacora_diente"),)

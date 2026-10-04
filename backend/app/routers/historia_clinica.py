@@ -31,6 +31,7 @@ from app.models.profesional_tratante import ProfesionalTratante
 from app.models.tratamiento import Tratamiento, TratamientoDiente
 from app.models.usuario import Usuario
 from app.models.visita import Visita
+from app.routers.bitacora import con_dientes
 from app.routers.constancias_asistencia import profesional_del_usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.services import etiquetas
@@ -244,6 +245,7 @@ async def pdf_historia_completa(
         .where(BitacoraTratamiento.paciente_id == paciente_id)
         .order_by(BitacoraTratamiento.fecha, BitacoraTratamiento.creado_en),
     )
+    await con_dientes(session, bitacora)
     # Quien registro cada entrada: el nombre del profesional vinculado al
     # usuario (ej. "Leonor Granados"), no el nombre de login ("dra.granados").
     ids_responsables = {e.responsable for e in bitacora}

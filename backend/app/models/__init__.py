@@ -4,7 +4,7 @@
 
 from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.auditoria_usuario import AuditoriaUsuario
-from app.models.bitacora_tratamiento import BitacoraTratamiento
+from app.models.bitacora_tratamiento import BitacoraDiente, BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
 from app.models.constancia_asistencia import ConstanciaAsistencia
 from app.models.configuracion_consultorio import ConfiguracionConsultorio
@@ -31,6 +31,7 @@ from app.models.visita import Visita
 __all__ = [
     "Antecedente",
     "AuditoriaUsuario",
+    "BitacoraDiente",
     "BitacoraTratamiento",
     "Consentimiento",
     "ConfiguracionConsultorio",

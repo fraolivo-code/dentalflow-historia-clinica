@@ -20,6 +20,13 @@ class UsuarioUpdate(BaseModel):
     activo: bool | None = None
     rol: RolUsuario | None = None
     email: str | None = None
+    # UUID para vincular, null para desvincular, ausente para no tocar (04/10/2026).
+    profesional_tratante_id: UUID | None = None
+
+
+class ProfesionalVinculadoRead(BaseModel):
+    id: UUID
+    nombre: str
 
 
 class UsuarioRead(BaseModel):
@@ -34,6 +41,8 @@ class UsuarioRead(BaseModel):
     debe_cambiar_clave: bool = False
     ultimo_login: datetime | None = None
     bloqueado: bool = False
+    # Profesional que firma los documentos con esta cuenta (null si no hay).
+    profesional: ProfesionalVinculadoRead | None = None
 
 
 class ReinicioClaveRespuesta(BaseModel):

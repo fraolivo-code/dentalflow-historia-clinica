@@ -77,6 +77,7 @@ async def aplicar_hallazgo(
     numero_diente: int,
     datos: OdontogramaHallazgoCreate,
     creado_por: UUID,
+    commit: bool = True,
 ) -> OdontogramaHallazgo:
     """
     Crea un hallazgo aplicando las reglas de exclusividad de la seccion 3.3:
@@ -102,6 +103,9 @@ async def aplicar_hallazgo(
     sin `relationship()` declarada, asi que SQLAlchemy no sabe ordenarlos
     solo — si no se fuerza el orden, el UPDATE puede viajar antes que el
     INSERT y Postgres lo rechaza (la fila referenciada todavia no existe).
+
+    commit=False (bitacora con varios dientes, 04/10/2026): no confirma ni
+    cierra la transaccion; quien llama confirma todo junto o deshace todo.
     """
     duplicado = await buscar_duplicado_activo(
         session, paciente_id, numero_diente, datos.tipo_hallazgo, datos.superficie
@@ -191,8 +195,11 @@ async def aplicar_hallazgo(
         creado_por=creado_por,
     )
 
-    await session.commit()
-    await session.refresh(nuevo)
+    if commit:
+        await session.commit()
+        await session.refresh(nuevo)
+    else:
+        await session.flush()
     return nuevo
 
 

@@ -192,7 +192,7 @@
         <td>
           <div class="texto">{{ e.descripcion }}</div>
           {%- set meta = [] %}
-          {%- if e.numero_diente %}{% set _ = meta.append("Diente " ~ e.numero_diente ~ (" (" ~ item.superficie ~ ")" if item.superficie else "")) %}{% endif %}
+          {%- if e.dientes %}{% set _ = meta.append(("Dientes " if e.dientes | length > 1 else "Diente ") ~ (e.dientes | join(", ")) ~ (" (" ~ item.superficie ~ ")" if item.superficie else "")) %}{% endif %}
           {%- if item.hallazgo %}{% set _ = meta.append(item.hallazgo) %}{% endif %}
           {%- if item.tratamiento %}{% set _ = meta.append("Tratamiento: " ~ item.tratamiento) %}{% endif %}
           {%- if item.responsable %}{% set _ = meta.append("Registró: " ~ item.responsable) %}{% endif %}
