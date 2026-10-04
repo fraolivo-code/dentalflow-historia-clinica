@@ -7,6 +7,7 @@ from app.models.auditoria_usuario import AuditoriaUsuario
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
 from app.models.constancia_asistencia import ConstanciaAsistencia
+from app.models.configuracion_consultorio import ConfiguracionConsultorio
 from app.models.consulta_vinculacion import ConsultaVinculacion
 from app.models.indicacion import IndicacionTratamiento, PlantillaIndicacion
 from app.models.observacion import Observacion
@@ -31,6 +32,7 @@ __all__ = [
     "AuditoriaUsuario",
     "BitacoraTratamiento",
     "Consentimiento",
+    "ConfiguracionConsultorio",
     "ConstanciaAsistencia",
     "ConsultaVinculacion",
     "DienteAnatomia",

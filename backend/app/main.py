@@ -5,6 +5,7 @@ from app.routers import (
     antecedentes,
     auth,
     bitacora,
+    configuracion,
     consentimientos,
     constancias_asistencia,
     historia_clinica,
@@ -38,6 +39,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
+app.include_router(configuracion.router)
 app.include_router(pacientes.router)
 app.include_router(visitas.router)
 app.include_router(odontograma.router)

@@ -38,6 +38,7 @@ from app.enums import RolUsuario  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (  # noqa: E402
     AuditoriaUsuario,
+    ConfiguracionConsultorio,
     ConsultaVinculacion,
     Paciente,
     TokenRecuperacion,
@@ -63,6 +64,7 @@ async def session_factory():
                 ConsultaVinculacion.__table__,
                 TokenRecuperacion.__table__,
                 AuditoriaUsuario.__table__,
+                ConfiguracionConsultorio.__table__,
             ],
         )
     yield async_sessionmaker(engine, expire_on_commit=False)
