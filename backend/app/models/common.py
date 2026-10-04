@@ -17,6 +17,11 @@ def ahora() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def a_utc(momento: datetime) -> datetime:
+    """SQLite devuelve fechas sin zona horaria: se interpretan como UTC."""
+    return momento.replace(tzinfo=timezone.utc) if momento.tzinfo is None else momento
+
+
 class UUIDPk:
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

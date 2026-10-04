@@ -36,7 +36,13 @@ from app.db import Base  # noqa: E402
 from app.deps import get_session  # noqa: E402
 from app.enums import RolUsuario  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import ConsultaVinculacion, Paciente, Usuario  # noqa: E402
+from app.models import (  # noqa: E402
+    AuditoriaUsuario,
+    ConsultaVinculacion,
+    Paciente,
+    TokenRecuperacion,
+    Usuario,
+)
 from app.services import vinculacion as servicio  # noqa: E402
 
 CLAVE = "k" * 40
@@ -51,7 +57,13 @@ async def session_factory():
     async with engine.begin() as conn:
         await conn.run_sync(
             Base.metadata.create_all,
-            tables=[Usuario.__table__, Paciente.__table__, ConsultaVinculacion.__table__],
+            tables=[
+                Usuario.__table__,
+                Paciente.__table__,
+                ConsultaVinculacion.__table__,
+                TokenRecuperacion.__table__,
+                AuditoriaUsuario.__table__,
+            ],
         )
     yield async_sessionmaker(engine, expire_on_commit=False)
     await engine.dispose()

@@ -11,10 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session
 from app.enums import RolUsuario
+from app.models.common import a_utc
 from app.models.usuario import Usuario
 from app.security import decodificar_access_token
 
 _bearer_scheme = HTTPBearer(auto_error=False)
+
+CODIGO_DEBE_CAMBIAR_CLAVE = "debe_cambiar_clave"
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -22,11 +25,15 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def get_current_usuario(
+async def get_usuario_autenticado(
     credenciales: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     session: AsyncSession = Depends(get_session),
 ) -> Usuario:
-    """Valida el JWT del header Authorization: Bearer <token> (Etapa 3)."""
+    """
+    Valida el JWT del header Authorization: Bearer <token> (Etapa 3): firma,
+    usuario activo y sesion no cerrada por un cambio de contrasena. NO exige
+    que la clave este al dia: solo lo usan /auth/me y /auth/cambiar-clave.
+    """
     no_autorizado = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token invalido o expirado",
@@ -40,13 +47,38 @@ async def get_current_usuario(
     except jwt.PyJWTError:
         raise no_autorizado
 
-    usuario_id = payload.get("sub")
-    if usuario_id is None:
+    try:
+        usuario_id = UUID(payload.get("sub"))
+    except (ValueError, TypeError, AttributeError):
         raise no_autorizado
 
-    usuario = await session.get(Usuario, UUID(usuario_id))
+    usuario = await session.get(Usuario, usuario_id)
     if usuario is None or not usuario.activo:
         raise no_autorizado
+
+    # Un token emitido antes del ultimo cambio de clave deja de servir. `iat`
+    # viene en segundos enteros: se compara contra la clave truncada al segundo.
+    if usuario.clave_cambiada_en is not None:
+        emitido = payload.get("iat")
+        if not isinstance(emitido, int | float) or emitido < int(
+            a_utc(usuario.clave_cambiada_en).timestamp()
+        ):
+            raise no_autorizado
+    return usuario
+
+
+async def get_current_usuario(
+    usuario: Usuario = Depends(get_usuario_autenticado),
+) -> Usuario:
+    """Como get_usuario_autenticado, pero con cambio de clave obligatorio pendiente -> 403."""
+    if usuario.debe_cambiar_clave:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "codigo": CODIGO_DEBE_CAMBIAR_CLAVE,
+                "mensaje": "Debe cambiar su contraseña antes de continuar.",
+            },
+        )
     return usuario
 
 
@@ -65,6 +97,11 @@ def requerir_rol(*roles: RolUsuario):
 
 
 requerir_dra = requerir_rol(RolUsuario.dra)
+
+# "Cuenta con acceso total" = hoy el rol dra. La gestion de usuarios usa estos
+# nombres genericos para que el futuro renombrado de roles sea un cambio acotado.
+ROLES_ACCESO_TOTAL = (RolUsuario.dra,)
+requerir_acceso_total = requerir_rol(*ROLES_ACCESO_TOTAL)
 
 
 logger = logging.getLogger(__name__)

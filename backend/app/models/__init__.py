@@ -3,6 +3,7 @@
 # cualquier create_all en tests).
 
 from app.models.antecedente import Antecedente, PacienteAntecedente
+from app.models.auditoria_usuario import AuditoriaUsuario
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
 from app.models.constancia_asistencia import ConstanciaAsistencia
@@ -20,12 +21,14 @@ from app.models.paciente import Paciente
 from app.models.periodontograma import PeriodontogramaDienteResumen, PeriodontogramaRegistro
 from app.models.profesional_tratante import ProfesionalTratante
 from app.models.receta import Medicamento, Receta, RecetaMedicamento
+from app.models.token_recuperacion import TokenRecuperacion
 from app.models.tratamiento import Tratamiento, TratamientoDiente
 from app.models.usuario import Usuario
 from app.models.visita import Visita
 
 __all__ = [
     "Antecedente",
+    "AuditoriaUsuario",
     "BitacoraTratamiento",
     "Consentimiento",
     "ConstanciaAsistencia",
@@ -46,6 +49,7 @@ __all__ = [
     "ProfesionalTratante",
     "Receta",
     "RecetaMedicamento",
+    "TokenRecuperacion",
     "Tratamiento",
     "TratamientoDiente",
     "Usuario",
