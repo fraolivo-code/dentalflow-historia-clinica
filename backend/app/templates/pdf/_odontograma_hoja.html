@@ -1,0 +1,43 @@
+{#- Hoja del odontograma para imprimir. `hoja` recibe:
+      svg      el dibujo (odontograma_svg: modo blanco, o a color en el actual),
+      lineas   {"superior": [(n, texto)], "inferior": [(n, texto)]} (ver
+               services/odontograma_impreso.lineas_por_diente),
+      plan     lineas de texto del plan de tratamiento (en gris; vacio en blanco),
+      gris     True si las lineas traen lo ya registrado en gris (odontograma actual).
+    Los estilos estan en _odontograma_hoja.css (incluirlo en el bloque estilos). #}
+{% macro hoja(svg, lineas, plan, gris=False) -%}
+    {%- if gris %}<p class="odo-nota">Las líneas en gris muestran lo ya registrado. Anote cada hallazgo nuevo también en la línea de su diente.</p>{% endif %}
+    <div class="odo-figura">{{ svg }}</div>
+
+    <table class="odo-lineas">
+      {%- for i in range(lineas.superior | length) %}
+      {%- set sup = lineas.superior[i] %}{% set inf = lineas.inferior[i] %}
+      <tr>
+        <td class="num">{{ sup[0] }}</td><td class="texto">{{ sup[1] }}</td>
+        <td class="hueco"></td>
+        <td class="num">{{ inf[0] }}</td><td class="texto">{{ inf[1] }}</td>
+      </tr>
+      {%- endfor %}
+    </table>
+
+    <div class="odo-plan">
+      <h3>Plan de tratamiento</h3>
+      {%- for texto in plan %}
+      <div class="renglon-plan">{{ texto }}</div>
+      {%- endfor %}
+      {%- for _ in range([4 - plan | length, 3] | max) %}
+      <div class="renglon-plan"></div>
+      {%- endfor %}
+    </div>
+{%- endmacro %}
+
+{#- Nombre, N.° de historia y fecha a mano (impresos en blanco). #}
+{% macro datos_a_mano() -%}
+    <table class="odo-datos"><tr>
+      <td class="etiqueta">Paciente:</td><td class="linea"></td>
+      <td class="separador"></td>
+      <td class="etiqueta">N.° de historia:</td><td class="linea" style="width: 16%"></td>
+      <td class="separador"></td>
+      <td class="etiqueta">Fecha:</td><td class="linea" style="width: 16%"></td>
+    </tr></table>
+{%- endmacro %}

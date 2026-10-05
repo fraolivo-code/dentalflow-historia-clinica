@@ -1,4 +1,5 @@
 {% extends "_documento.html" %}
+{% from "_odontograma_hoja.html" import hoja, datos_a_mano %}
 
 {#- Documento 4 de 5: formulario en blanco para llenar a mano mientras la Dra.
     sigue en papel. Mismos campos que la ficha digital (paciente +
@@ -47,6 +48,12 @@
   /* Renglon extra de detalle (Operaciones): fila propia debajo, sin separador
      entre ambas, para que nombre y casilleros queden en el primer renglon. */
   .antecedentes tr.con-extra td { border-bottom: none; }
+
+  /* Pagina 2: odontograma en blanco para marcar a mano (misma hoja que el
+     odontograma suelto, ver _odontograma_hoja). */
+  .pagina-odontograma { page-break-before: always; }
+  .pagina-odontograma h2 { margin-top: 0; }
+  {% include "_odontograma_hoja.css" %}
 {% endblock %}
 
 {% macro renglon(etiqueta, pista=None) -%}
@@ -134,6 +141,12 @@
       {% for _ in range(8) %}
       {{ renglon_libre() }}
       {% endfor %}
+    </div>
+
+    <div class="pagina-odontograma">
+      <h2>Odontograma</h2>
+      {{ datos_a_mano() }}
+      {{ hoja(odontograma.svg, odontograma.lineas, [], False) }}
     </div>
 {% endblock %}
 

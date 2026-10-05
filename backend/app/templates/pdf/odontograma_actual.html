@@ -1,0 +1,40 @@
+{% extends "_documento.html" %}
+{% from "_odontograma_hoja.html" import hoja %}
+
+{#- Odontograma actual del paciente para llevar a la consulta: el dibujo a color
+    (como la historia completa); las lineas por diente y el plan de tratamiento
+    traen lo ya registrado en gris y queda espacio para anotar lo nuevo. Solo
+    acceso total. #}
+{% block titulo %}Odontograma{% endblock %}
+
+{% block estilos %}
+  /* Texto del documento en negro y grises (el color queda para el dibujo): se
+     pisan los colores de marca de la base. */
+  :root { --primario: #000; --acento: #000; --texto: #000; --secundario: #555; --borde: #999; }
+  @page { @top-left { color: #555; } }
+  @page { margin: 1.5cm 2cm 1.3cm; }
+  body { line-height: 1.25; font-size: 10pt; }
+  .membrete { margin-bottom: 8pt; padding-bottom: 6pt; }
+  .membrete-nombre { font-size: 17pt; }
+  h1 { font-size: 16pt; margin-bottom: 4pt; }
+  .ficha { width: 100%; border-collapse: collapse; margin: 0 0 4pt; }
+  .ficha td { padding: 1pt 8pt 1pt 0; vertical-align: top; }
+  .ficha .etiqueta { width: 18%; color: var(--secundario); white-space: nowrap; }
+  .ficha .valor { width: 34%; white-space: nowrap; }
+  {% include "_odontograma_hoja.css" %}
+{% endblock %}
+
+{% block cuerpo %}
+    <table class="ficha">
+      <tr>
+        <td class="etiqueta">Paciente</td><td class="valor" colspan="3"><strong class="paciente">{{ paciente.nombre_completo }}</strong></td>
+      </tr>
+      <tr>
+        <td class="etiqueta">N.° de historia</td><td class="valor">{{ paciente.numero_historia }} · Paciente desde {{ paciente.paciente_desde }}</td>
+        <td class="etiqueta">Fecha de impresión</td><td class="valor">{{ fecha_impresion.strftime("%d/%m/%Y") }}</td>
+      </tr>
+    </table>
+    {{ hoja(odontograma.svg, odontograma.lineas, odontograma.plan, True) }}
+{% endblock %}
+
+{% block firma %}{% endblock %}

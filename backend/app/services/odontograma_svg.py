@@ -45,6 +45,24 @@ BORDE = "#D8DED9"
 NUMERO = "#66806F"
 RAIZ = "#eef1ee"
 
+# Modos para imprimir (04/10/2026): se parte del mismo dibujo a color y se
+# sustituye cada color de la paleta por su equivalente SIN color, para que el
+# resultado se vea bien en una impresora en blanco y negro y no haya un segundo
+# estilo que mantener. "blanco": solo los dientes (sin hallazgos). "gris": los
+# hallazgos activos en grises claros y los contornos de los dientes en negro.
+MODO_COLOR = "color"
+MODO_BLANCO = "blanco"
+MODO_GRIS = "gris"
+_GRIS_AZUL = "#8c8c8c"  # lo que en pantalla es azul (existente / buen estado)
+_GRIS_ROJO = "#a6a6a6"  # lo que en pantalla es rojo (caries, defectos, indicado)
+_A_BLANCO_Y_NEGRO = {
+    AZUL: _GRIS_AZUL,
+    ROJO: _GRIS_ROJO,
+    BORDE: "#000000",   # contorno de los dientes
+    NUMERO: "#000000",  # numeros de diente
+    RAIZ: "#f2f2f2",
+}
+
 TIPOS_ENDO = (
     "conducto_ok",
     "conducto_ok_perno",
@@ -390,11 +408,22 @@ def _capa_puente(dientes_puente, defecto: bool) -> str:
     return "<g>" + "".join(s) + "</g>"
 
 
-def odontograma_svg(hallazgos, lesiones, puentes, raices_por_diente: dict[int, list[str]]) -> Markup:
+def odontograma_svg(
+    hallazgos, lesiones, puentes, raices_por_diente: dict[int, list[str]], modo: str = MODO_COLOR
+) -> Markup:
     """
     hallazgos / lesiones: activos (no resueltos). puentes: lista de
     (puente, dientes en orden anatomico). raices_por_diente: de diente_anatomia.
+
+    modo: "color" (pantalla/historia completa), "blanco" (dientes sin
+    hallazgos; ignora lo recibido) o "gris" (hallazgos activos en gris). Ver
+    _A_BLANCO_Y_NEGRO.
     """
+    if modo not in (MODO_COLOR, MODO_BLANCO, MODO_GRIS):
+        raise ValueError(f"modo de odontograma desconocido: {modo}")
+    if modo == MODO_BLANCO:
+        hallazgos, lesiones, puentes = [], [], []
+
     por_diente = defaultdict(list)
     for h in hallazgos:
         por_diente[h.numero_diente].append(h)
@@ -412,7 +441,12 @@ def odontograma_svg(hallazgos, lesiones, puentes, raices_por_diente: dict[int, l
     for puente, dientes in puentes:
         partes.append(_capa_puente(dientes, puente.estado_general.value == "defecto"))
 
+    cuerpo = "".join(partes)
+    if modo != MODO_COLOR:
+        for color, equivalente in _A_BLANCO_Y_NEGRO.items():
+            cuerpo = cuerpo.replace(f'"{color}"', f'"{equivalente}"')
+
     return Markup(
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {VIEWBOX_WIDTH} {VIEWBOX_HEIGHT}" '
-        f'class="odontograma" role="img" aria-label="Odontograma">{"".join(partes)}</svg>'
+        f'class="odontograma" role="img" aria-label="Odontograma">{cuerpo}</svg>'
     )

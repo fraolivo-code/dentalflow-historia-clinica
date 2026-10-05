@@ -60,12 +60,19 @@
 </style>
 </head>
 <body>
+  {#- Los impresos en blanco pasan `membrete` (nombre y frase del consultorio,
+      de la configuracion); el resto, `profesional` (quien firma el documento). #}
   <header class="membrete">
+  {% if membrete is defined %}
+    <p class="membrete-nombre">{{ membrete.nombre }}</p>
+    {% if membrete.detalle %}<p class="membrete-detalle">{{ membrete.detalle }}</p>{% endif %}
+  {% else %}
     <p class="membrete-nombre">{{ profesional.nombre }}</p>
     <p class="membrete-detalle">
       {{ profesional.especialidad or "Odontología" }}
       {%- if profesional.numero_colegiatura %} · N.° de colegiatura {{ profesional.numero_colegiatura }}{% endif %}
     </p>
+  {% endif %}
   </header>
 
   <h1>{{ self.titulo() }}</h1>

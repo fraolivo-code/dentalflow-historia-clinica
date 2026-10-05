@@ -19,13 +19,6 @@ from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
 from app.models.observacion import Observacion
-from app.models.odontograma import (
-    DienteAnatomia,
-    OdontogramaHallazgo,
-    OdontogramaLesionApical,
-    PuenteFijo,
-    PuenteFijoDiente,
-)
 from app.models.periodontograma import PeriodontogramaDienteResumen, PeriodontogramaRegistro
 from app.models.profesional_tratante import ProfesionalTratante
 from app.models.tratamiento import Tratamiento, TratamientoDiente
@@ -36,7 +29,7 @@ from app.routers.constancias_asistencia import profesional_del_usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.services import etiquetas
 from app.services.fechas import hoy_venezuela
-from app.services.odontograma_logic import orden_anatomico
+from app.services.odontograma_impreso import cargar_estado, leyenda_por_diente
 from app.services.odontograma_svg import ARCO_INFERIOR, ARCO_SUPERIOR, odontograma_svg
 from app.services.pdf import generar_pdf
 
@@ -64,47 +57,16 @@ async def _todos(session: AsyncSession, consulta) -> list:
 
 async def _odontograma(session: AsyncSession, paciente_id: UUID) -> dict:
     """Dibujo del estado actual, leyenda por diente y lo ya resuelto."""
-    hallazgos = await _todos(
-        session,
-        select(OdontogramaHallazgo)
-        .where(OdontogramaHallazgo.paciente_id == paciente_id)
-        .order_by(OdontogramaHallazgo.fecha, OdontogramaHallazgo.creado_en),
-    )
-    lesiones = await _todos(
-        session,
-        select(OdontogramaLesionApical)
-        .where(OdontogramaLesionApical.paciente_id == paciente_id)
-        .order_by(OdontogramaLesionApical.fecha, OdontogramaLesionApical.creado_en),
-    )
-    puentes = await _todos(
-        session,
-        select(PuenteFijo).where(PuenteFijo.paciente_id == paciente_id).order_by(PuenteFijo.fecha),
-    )
-    dientes_de: dict[UUID, list] = {p.id: [] for p in puentes}
-    if puentes:
-        for dp in await _todos(session, select(PuenteFijoDiente).where(PuenteFijoDiente.puente_id.in_(dientes_de))):
-            dientes_de[dp.puente_id].append(dp)
-    for lista in dientes_de.values():
-        lista.sort(key=lambda dp: orden_anatomico(dp.numero_diente))
-    raices = {d.numero_diente: list(d.nombres_raices) for d in await _todos(session, select(DienteAnatomia))}
+    estado = await cargar_estado(session, paciente_id)
+    hallazgos, lesiones, puentes = estado["hallazgos"], estado["lesiones"], estado["puentes"]
+    dientes_de = estado["dientes_de"]
 
     activos = [h for h in hallazgos if not h.resuelto]
     lesiones_activas = [l for l in lesiones if not l.resuelto]
     puentes_activos = [(p, dientes_de[p.id]) for p in puentes if not p.resuelto]
 
     # Leyenda: lo mismo que el titulo (tooltip) de cada diente en pantalla.
-    leyenda = defaultdict(list)
-    for p, dientes in puentes_activos:
-        secuencia = "-".join(str(dp.numero_diente) for dp in dientes)
-        for dp in dientes:
-            leyenda[dp.numero_diente].append(
-                f"Puente {secuencia} ({etiquetas.ESTADO_PUENTE[p.estado_general]}): "
-                f"{etiquetas.ROL_PUENTE[dp.rol]}, {etiquetas.HALLAZGO[dp.condicion_individual].lower()}"
-            )
-    for h in activos:
-        leyenda[h.numero_diente].append(etiquetas.etiqueta_hallazgo(h.tipo_hallazgo, h.superficie))
-    for l in lesiones_activas:
-        leyenda[l.numero_diente].append(etiquetas.etiqueta_lesion(l.tipo, l.raiz))
+    leyenda = leyenda_por_diente(activos, lesiones_activas, puentes_activos)
 
     # Ya resueltos: el dibujo solo muestra el estado actual; esto conserva el pasado.
     resueltos = [
@@ -124,7 +86,7 @@ async def _odontograma(session: AsyncSession, paciente_id: UUID) -> dict:
     resueltos.sort(key=lambda r: (r["fecha"], r["resuelto"] or date.max))
 
     return {
-        "svg": odontograma_svg(activos, lesiones_activas, puentes_activos, raices),
+        "svg": odontograma_svg(activos, lesiones_activas, puentes_activos, estado["raices"]),
         "leyenda": [(n, leyenda[n]) for n in ARCO_SUPERIOR + ARCO_INFERIOR if leyenda[n]],
         "resueltos": resueltos,
     }

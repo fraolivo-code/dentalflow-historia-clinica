@@ -3,8 +3,6 @@
 # sesion y sin el cambio obligatorio de clave. La ESCRITURA es solo de las
 # cuentas con acceso total.
 
-import os
-
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +20,7 @@ from app.schemas.configuracion import (
     PortadaUpdate,
 )
 from app.services import auditoria, correlativos
+from app.services.consultorio import nombre_por_defecto
 from app.services.imagen_portada import MAX_BYTES, ImagenInvalida, procesar
 
 router = APIRouter(prefix="/configuracion", tags=["configuracion"])
@@ -40,14 +39,10 @@ async def _obtener(session: AsyncSession) -> ConfiguracionConsultorio:
     return config
 
 
-def _nombre_por_defecto() -> str:
-    return os.getenv("NOMBRE_PRODUCTO", "DentalFlow").strip() or "DentalFlow"
-
-
 def _leer(config: ConfiguracionConsultorio) -> PortadaRead:
     tiene = config.imagen_tipo is not None and config.imagen_actualizada_en is not None
     return PortadaRead(
-        nombre=config.nombre or _nombre_por_defecto(),
+        nombre=config.nombre or nombre_por_defecto(),
         frase=config.frase,
         tiene_imagen=tiene,
         imagen_version=(
