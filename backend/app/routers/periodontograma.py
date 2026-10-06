@@ -12,6 +12,7 @@ from app.models.usuario import Usuario
 from app.models.visita import Visita
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.periodontograma import (
+    PeriodontogramaDienteRenumerar,
     PeriodontogramaDienteResumenRead,
     PeriodontogramaDienteResumenUpdate,
     PeriodontogramaHistorialItem,
@@ -21,6 +22,7 @@ from app.schemas.periodontograma import (
     PeriodontogramaVisitaRead,
     validar_furcacion,
 )
+from app.services import paciente_cambios
 from app.services.periodontograma import calcular_nivel_insercion
 
 router = APIRouter(tags=["periodontograma"], dependencies=[Depends(requerir_dra)])
@@ -209,3 +211,110 @@ async def corregir_resumen(
     await session.commit()
     await session.refresh(resumen)
     return resumen
+
+
+@router.patch(
+    "/visitas/{visita_id}/periodontograma/dientes/{numero_diente}",
+    response_model=PeriodontogramaVisitaRead,
+)
+async def renumerar_diente(
+    visita_id: UUID,
+    numero_diente: int,
+    datos: PeriodontogramaDienteRenumerar,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """
+    Corrige el numero de diente de una medicion de esta visita (error de tipeo,
+    05/10/2026): mueve sus sitios y su resumen al diente correcto. Solo si el
+    destino no tiene mediciones en la visita ni choca con la furcacion.
+    """
+    await _obtener_visita_o_404(visita_id, session)
+    nuevo = datos.numero_diente
+
+    def filtro(modelo, n):
+        return modelo.visita_id == visita_id, modelo.numero_diente == n
+
+    registros = (await session.execute(
+        select(PeriodontogramaRegistro).where(*filtro(PeriodontogramaRegistro, numero_diente))
+    )).scalars().all()
+    resumenes = (await session.execute(
+        select(PeriodontogramaDienteResumen).where(*filtro(PeriodontogramaDienteResumen, numero_diente))
+    )).scalars().all()
+    if not registros and not resumenes:
+        raise HTTPException(404, f"El diente {numero_diente} no tiene periodontograma en esta visita")
+    if nuevo == numero_diente:
+        raise HTTPException(422, "El diente nuevo es el mismo que el actual")
+    ocupado = (await session.execute(
+        select(PeriodontogramaRegistro.id).where(*filtro(PeriodontogramaRegistro, nuevo)).limit(1)
+    )).first() or (await session.execute(
+        select(PeriodontogramaDienteResumen.id).where(*filtro(PeriodontogramaDienteResumen, nuevo)).limit(1)
+    )).first()
+    if ocupado:
+        raise HTTPException(409, f"El diente {nuevo} ya tiene periodontograma en esta visita")
+    for r in resumenes:
+        try:
+            validar_furcacion(nuevo, r.furcacion)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+    for fila in (*registros, *resumenes):
+        fila.numero_diente = nuevo
+        fila.actualizado_en = ahora()
+        fila.actualizado_por = usuario.id
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(409, f"El diente {nuevo} ya tiene periodontograma en esta visita")
+    for fila in (*registros, *resumenes):
+        await session.refresh(fila)
+    return PeriodontogramaVisitaRead(registros=registros, resumenes=resumenes)
+
+
+def _texto_eliminado(visita: Visita, registros, resumenes) -> str:
+    """Copia legible de lo borrado (historial del paciente), por si hay que recuperarlo a mano."""
+    dientes = sorted({r.numero_diente for r in registros} | {r.numero_diente for r in resumenes})
+    partes = [f"Visita {visita.fecha.isoformat()}, {len(dientes)} diente(s)"]
+    for d in dientes:
+        sitios = ", ".join(
+            f"{r.sitio.value} MG{r.margen_gingival} PS{r.profundidad_sondaje} Rec{r.recesion_mm}"
+            + (f" Cairo{r.recesion_cairo.value}" if r.recesion_cairo else "")
+            + (" S" if r.sangrado else "") + (" P" if r.placa else "")
+            for r in registros if r.numero_diente == d
+        )
+        res = next((r for r in resumenes if r.numero_diente == d), None)
+        extra = f", mov {res.movilidad}" + (f", furc {res.furcacion.value}" if res.furcacion else "") if res else ""
+        partes.append(f"{d}: {sitios}{extra}")
+    return " | ".join(partes)
+
+
+@router.delete("/visitas/{visita_id}/periodontograma", status_code=204)
+async def eliminar_periodontograma(
+    visita_id: UUID,
+    confirmar: str = "",
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """
+    Borra TODO el periodontograma de una visita (carga en el paciente equivocado,
+    05/10/2026). Exige confirmar=ELIMINAR (la pantalla lo pide en dos pasos) y deja
+    una copia de lo borrado en el historial de cambios del paciente (sin retencion).
+    """
+    visita = await _obtener_visita_o_404(visita_id, session)
+    if confirmar != "ELIMINAR":
+        raise HTTPException(422, "Falta la confirmacion: confirmar=ELIMINAR")
+    registros = (await session.execute(
+        select(PeriodontogramaRegistro).where(PeriodontogramaRegistro.visita_id == visita_id)
+    )).scalars().all()
+    resumenes = (await session.execute(
+        select(PeriodontogramaDienteResumen).where(PeriodontogramaDienteResumen.visita_id == visita_id)
+    )).scalars().all()
+    if not registros and not resumenes:
+        raise HTTPException(404, "Esta visita no tiene periodontograma")
+    paciente_cambios.registrar(
+        session, visita.paciente_id, usuario.id,
+        [("periodontograma_eliminado", _texto_eliminado(visita, registros, resumenes), None)],
+    )
+    for fila in (*registros, *resumenes):
+        await session.delete(fila)
+    await session.commit()

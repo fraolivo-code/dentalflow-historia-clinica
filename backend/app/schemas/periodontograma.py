@@ -201,6 +201,12 @@ class PeriodontogramaVisitaCreate(BaseModel):
         return self
 
 
+class PeriodontogramaDienteRenumerar(NumeroDienteValidoMixin):
+    """Correccion de un error de tipeo: el diente medido en esta visita era otro (05/10/2026)."""
+
+    numero_diente: int
+
+
 class PeriodontogramaVisitaRead(BaseModel):
     registros: list[PeriodontogramaRegistroRead]
     resumenes: list[PeriodontogramaDienteResumenRead]
