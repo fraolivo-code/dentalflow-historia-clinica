@@ -1,0 +1,795 @@
+{
+ "version": "2026-10-05.1",
+ "descripcion": "Dientes anatómicos aprobados por la Dra. (muestra 3). Fuente única para la pantalla y los PDF. Coordenadas locales: raíz arriba (y=0), corona abajo (y=100), mesial a la DERECHA; 'espejo' refleja horizontalmente (cuadrantes 2 y 3).",
+ "colores": {
+  "azul": "#1565c0",
+  "rojo": "#c62828",
+  "trazo": "#2b2b2b",
+  "raiz": "#f3efe8",
+  "corona": "#ffffff",
+  "surco": "#555555",
+  "cervical": "#8a8378",
+  "raiz_punteada": "#9a948a"
+ },
+ "layout": {
+  "separacion": 6,
+  "separacion_linea_media": 14,
+  "superior": {
+   "vestibular": "translate(0,0)",
+   "oclusal": "translate(0,125)",
+   "palatina": "translate(0,252) scale(1,-1)",
+   "numero_y": 218,
+   "zonas_ausente_y": [
+    [
+     2,
+     100
+    ],
+    [
+     108,
+     142
+    ],
+    [
+     150,
+     206
+    ]
+   ]
+  },
+  "inferior": {
+   "lingual": "translate(0,-52)",
+   "oclusal": "translate(0,73) scale(1,-1)",
+   "vestibular": "translate(0,198) scale(1,-1)",
+   "numero_y": 212,
+   "zonas_ausente_y": [
+    [
+     -6,
+     48
+    ],
+    [
+     56,
+     90
+    ],
+    [
+     98,
+     198
+    ]
+   ]
+  },
+  "vista_sin_raices_recorte": "desde cervical-12 hasta y=112 (corona + inicio de raíz)"
+ },
+ "zonas": {
+  "corona": "contorno ∩ y ≥ cervical",
+  "mesial": "x ≥ 0.73·ancho, y de cervical+6 a cervical+46 (en la vista oclusal: x ≥ 0.78·ancho)",
+  "distal": "x ≤ 0.27·ancho, y de cervical+6 a cervical+46 (en la vista oclusal: x ≤ 0.22·ancho)",
+  "vestibular": "elipse centro (ancho/2, cervical+18), rx 0.16·ancho, ry 7 en la vista vestibular; franja y ≤ -9 en la oclusal",
+  "palatino_lingual": "elipse centro (ancho/2, cervical+18), rx 0.17·ancho, ry 7.5 en la vista palatina/lingual; franja y ≥ 9 en la oclusal",
+  "oclusal": "path 'oclusal.centro'",
+  "cervical": "franja y de cervical a cervical+6 dentro de la corona, en la vista vestibular",
+  "abfraccion": "cuña en la zona cervical de la vista vestibular, del lado de la corona junto a la línea cervical"
+ },
+ "formas": {
+  "11": {
+   "ancho": 40,
+   "cervical": 58,
+   "tipo": "inc_c",
+   "contorno": "M9,58 C6,68 4,82 5,93 Q6,98 12,99 Q20,100.5 28,99 Q34,98 35,93 C36,82 34,68 31,58 C30,40 26,16 21,5 Q20,2.5 19,5 C14,16 10,40 9,58 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      20,
+      56,
+      20,
+      9
+     ],
+     "apice": [
+      20,
+      5
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M6.0,0 Q6.0,-5.5 20.0,-5.5 Q34.0,-5.5 34.0,0 Q34.0,4.4 20.0,4.4 Q6.0,4.4 6.0,0 Z",
+    "surcos": "M9.5,-0.8 Q20.0,-2 30.5,-0.8",
+    "centro": "M12.299999999999999,-1.6 Q20.0,-3.2 27.700000000000003,-1.6 Q20.0,0.6 12.299999999999999,-1.6 Z"
+   }
+  },
+  "12": {
+   "ancho": 34,
+   "cervical": 60,
+   "tipo": "inc_l",
+   "contorno": "M8,60 C6,70 5,82 6,92 Q8,99 17,99 Q26,99 28,92 C29,82 28,70 26,60 C25,42 22,20 18,8 Q17,5.5 16,8 C12,20 9,42 8,60 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      17,
+      58,
+      17,
+      11
+     ],
+     "apice": [
+      17,
+      8
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M5.5,0 Q5.5,-5 17.0,-5 Q28.5,-5 28.5,0 Q28.5,4.0 17.0,4.0 Q5.5,4.0 5.5,0 Z",
+    "surcos": "M8.375,-0.8 Q17.0,-2 25.625,-0.8",
+    "centro": "M10.675,-1.6 Q17.0,-3.2 23.325,-1.6 Q17.0,0.6 10.675,-1.6 Z"
+   }
+  },
+  "13": {
+   "ancho": 38,
+   "cervical": 56,
+   "tipo": "can",
+   "contorno": "M9,56 C6,66 4,78 6,86 Q12,95 19,101 Q26,95 32,86 C34,78 32,66 29,56 C28,36 24,10 19,1 Q18.5,0 18,1 C14,10 10,36 9,56 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      19,
+      54,
+      19,
+      5
+     ],
+     "apice": [
+      19,
+      1
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M7.0,0 Q9.0,-8 19.0,-9 Q29.0,-8 31.0,0 Q28.0,8 19.0,8.5 Q10.0,8 7.0,0 Z",
+    "surcos": "M11.0,-1 L19.0,-4 L27.0,-1 M19.0,-4 L19.0,5",
+    "centro": "M14.0,-1 L19.0,-4 L24.0,-1 L19.0,3 Z"
+   }
+  },
+  "14": {
+   "ancho": 36,
+   "cervical": 58,
+   "tipo": "pre",
+   "contorno": "M8,58 C6,68 5,80 7,88 Q12,96 18,100 Q24,96 29,88 C31,80 30,68 28,58 C27,46 26,30 24,16 Q23,12 21,16 L19,26 L17,16 Q15,12 14,16 C11,30 9,46 8,58 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Vestibular",
+     "conducto": [
+      16,
+      56,
+      15.5,
+      18
+     ],
+     "apice": [
+      15,
+      15
+     ]
+    },
+    {
+     "nombre": "Palatina",
+     "conducto": [
+      20,
+      56,
+      22.5,
+      18
+     ],
+     "apice": [
+      22.5,
+      15
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M7.0,0 Q7.0,-14 18.0,-14 Q29.0,-14 29.0,0 Q29.0,14 18.0,14 Q7.0,14 7.0,0 Z",
+    "surcos": "M11.0,0 Q18.0,2 25.0,0 M11.0,0 l-2,-3 M11.0,0 l-2,3 M25.0,0 l2,-3 M25.0,0 l2,3",
+    "centro": "M11.0,-4 Q18.0,-5 25.0,-4 L25.0,4 Q18.0,5 11.0,4 Z"
+   }
+  },
+  "15": {
+   "ancho": 36,
+   "cervical": 58,
+   "tipo": "pre",
+   "contorno": "M8,58 C6,68 5,80 7,88 Q12,96 18,99 Q24,96 29,88 C31,80 30,68 28,58 C27,42 23,20 19,8 Q18,5.5 17,8 C13,20 9,42 8,58 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      18,
+      56,
+      18,
+      11
+     ],
+     "apice": [
+      18,
+      8
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M7.0,0 Q7.0,-14 18.0,-14 Q29.0,-14 29.0,0 Q29.0,14 18.0,14 Q7.0,14 7.0,0 Z",
+    "surcos": "M11.0,0 Q18.0,2 25.0,0 M11.0,0 l-2,-3 M11.0,0 l-2,3 M25.0,0 l2,-3 M25.0,0 l2,3",
+    "centro": "M11.0,-4 Q18.0,-5 25.0,-4 L25.0,4 Q18.0,5 11.0,4 Z"
+   }
+  },
+  "16": {
+   "ancho": 52,
+   "cervical": 56,
+   "tipo": "mol1",
+   "contorno": "M8,56 C5,66 4,78 5,88 Q7,96 13,97 Q18,92 22,97 Q26,100 31,96 Q35,92 40,97 Q46,96 47,88 C48,78 47,66 44,56 C44,44 46,28 44,14 Q43,10 41,14 L35,40 L31,22 Q27,8 23,22 L19,40 L13,16 Q11,11 10,16 C7,30 8,44 8,56 Z",
+   "raiz_palatina_punteada": "M19,44 C20,30 23,12 26,4 Q27,1.5 28,4 C31,12 34,30 35,44",
+   "raices": [
+    {
+     "nombre": "Distovestibular",
+     "conducto": [
+      13,
+      54,
+      11.5,
+      18
+     ],
+     "apice": [
+      11,
+      15
+     ]
+    },
+    {
+     "nombre": "Palatina",
+     "conducto": [
+      26,
+      54,
+      26,
+      14
+     ],
+     "apice": [
+      26,
+      10
+     ]
+    },
+    {
+     "nombre": "Mesiovestibular",
+     "conducto": [
+      39,
+      54,
+      42,
+      18
+     ],
+     "apice": [
+      42.5,
+      15
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M9.0,-9.0 Q9.0,-15 19.2,-15 L36.2,-15 Q43.0,-15 43.0,-7.5 L43.0,9.0 Q43.0,15 32.8,15 L15.8,15 Q9.0,15 9.0,7.5 Z",
+    "surcos": "M15.8,-2.25 L26.0,0.75 L36.2,-1.5 M26.0,0.75 L24.3,-11.25 M26.0,0.75 L28.55,11.25 M15.8,-2.25 l-5.1,-3.75 M36.2,-1.5 l5.1,3.75",
+    "centro": "M15.46,-6.75 L35.35,-6.75 L36.54,6.3 L16.65,6.3 Z"
+   }
+  },
+  "17": {
+   "ancho": 48,
+   "cervical": 57,
+   "tipo": "mol2",
+   "contorno": "M8,57 C5,67 4,79 6,88 Q8,96 13,96 Q18,91 23,96 Q28,99 33,95 Q37,91 41,95 Q44,93 44,86 C45,77 44,66 41,57 C40,44 39,30 36,18 Q34,13 32,18 L26,38 L20,18 Q17,12 15,18 C11,30 9,44 8,57 Z",
+   "raiz_palatina_punteada": "M21,42 C22,28 24,14 26,7 Q26.8,5 27.6,7 C29,14 31,28 32,42",
+   "raices": [
+    {
+     "nombre": "Distovestibular",
+     "conducto": [
+      14,
+      55,
+      15.5,
+      20
+     ],
+     "apice": [
+      15.5,
+      17
+     ]
+    },
+    {
+     "nombre": "Palatina",
+     "conducto": [
+      26.8,
+      55,
+      26.8,
+      9
+     ],
+     "apice": [
+      26.8,
+      7
+     ]
+    },
+    {
+     "nombre": "Mesiovestibular",
+     "conducto": [
+      32,
+      55,
+      34,
+      20
+     ],
+     "apice": [
+      34,
+      17
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M9.0,-8.4 Q9.0,-14 18.0,-14 L33.0,-14 Q39.0,-14 39.0,-7.0 L39.0,8.4 Q39.0,14 30.0,14 L15.0,14 Q9.0,14 9.0,7.0 Z",
+    "surcos": "M15.0,-2.1 L24.0,0.7000000000000001 L33.0,-1.4000000000000001 M24.0,0.7000000000000001 L22.5,-10.5 M24.0,0.7000000000000001 L26.25,10.5 M15.0,-2.1 l-4.5,-3.5 M33.0,-1.4000000000000001 l4.5,3.5",
+    "centro": "M14.7,-6.3 L32.25,-6.3 L33.3,5.88 L15.75,5.88 Z"
+   }
+  },
+  "18": {
+   "ancho": 42,
+   "cervical": 58,
+   "tipo": "mol3",
+   "contorno": "M7,58 C5,68 4,80 6,88 Q9,95 13,95 Q17,90 21,95 Q26,98 30,93 Q35,94 36,86 C37,77 36,67 34,58 C33,44 30,30 24,20 Q21,16 18,20 C12,30 8,44 7,58 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Distovestibular",
+     "conducto": [
+      17,
+      56,
+      18,
+      26
+     ],
+     "apice": [
+      18,
+      22
+     ]
+    },
+    {
+     "nombre": "Palatina",
+     "conducto": [
+      21,
+      56,
+      21,
+      24
+     ],
+     "apice": [
+      21,
+      19
+     ]
+    },
+    {
+     "nombre": "Mesiovestibular",
+     "conducto": [
+      25,
+      56,
+      24,
+      26
+     ],
+     "apice": [
+      24,
+      22
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M8.0,-7.199999999999999 Q8.0,-12 15.8,-12 L28.8,-12 Q34.0,-12 34.0,-6.0 L34.0,7.199999999999999 Q34.0,12 26.2,12 L13.2,12 Q8.0,12 8.0,6.0 Z",
+    "surcos": "M13.2,-1.7999999999999998 L21.0,0.6000000000000001 L28.8,-1.2000000000000002 M21.0,0.6000000000000001 L19.7,-9.0 M21.0,0.6000000000000001 L22.95,9.0 M13.2,-1.7999999999999998 l-3.9,-3.0 M28.8,-1.2000000000000002 l3.9,3.0",
+    "centro": "M12.94,-5.4 L28.15,-5.4 L29.060000000000002,5.04 L13.85,5.04 Z"
+   }
+  },
+  "41": {
+   "ancho": 30,
+   "cervical": 60,
+   "tipo": "inc_i",
+   "contorno": "M8,60 C7,70 6,82 7,94 Q9,99 15,99 Q21,99 23,94 C24,82 23,70 22,60 C21,42 18,18 15.5,6 Q15,4 14.5,6 C12,18 9,42 8,60 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      15,
+      58,
+      15,
+      9
+     ],
+     "apice": [
+      15,
+      6
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M5.0,0 Q5.0,-4.5 15.0,-4.5 Q25.0,-4.5 25.0,0 Q25.0,3.6 15.0,3.6 Q5.0,3.6 5.0,0 Z",
+    "surcos": "M7.5,-0.8 Q15.0,-2 22.5,-0.8",
+    "centro": "M9.5,-1.6 Q15.0,-3.2 20.5,-1.6 Q15.0,0.6 9.5,-1.6 Z"
+   }
+  },
+  "42": {
+   "ancho": 31,
+   "cervical": 60,
+   "tipo": "inc_i",
+   "contorno": "M8,60 C6.5,70 6,82 7,93 Q9,99 15.5,99 Q22,99 24,93 C25,82 24.5,70 23,60 C22,42 19,18 16,6 Q15.5,4 15,6 C12.5,18 9,42 8,60 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      15.5,
+      58,
+      15.5,
+      9
+     ],
+     "apice": [
+      15.5,
+      6
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M5.5,0 Q5.5,-4.5 15.5,-4.5 Q25.5,-4.5 25.5,0 Q25.5,3.6 15.5,3.6 Q5.5,3.6 5.5,0 Z",
+    "surcos": "M8.0,-0.8 Q15.5,-2 23.0,-0.8",
+    "centro": "M10.0,-1.6 Q15.5,-3.2 21.0,-1.6 Q15.5,0.6 10.0,-1.6 Z"
+   }
+  },
+  "43": {
+   "ancho": 36,
+   "cervical": 56,
+   "tipo": "can",
+   "contorno": "M9,56 C6,66 4.5,78 6,86 Q12,95 18,101 Q24,95 30,86 C31.5,78 30,66 27,56 C26,36 22,10 18,1 Q17.5,0 17,1 C13.5,10 10,36 9,56 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      18,
+      54,
+      18,
+      5
+     ],
+     "apice": [
+      18,
+      1
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M6.0,0 Q8.0,-8 18.0,-9 Q28.0,-8 30.0,0 Q27.0,8 18.0,8.5 Q9.0,8 6.0,0 Z",
+    "surcos": "M10.0,-1 L18.0,-4 L26.0,-1 M18.0,-4 L18.0,5",
+    "centro": "M13.0,-1 L18.0,-4 L23.0,-1 L18.0,3 Z"
+   }
+  },
+  "44": {
+   "ancho": 34,
+   "cervical": 58,
+   "tipo": "pre",
+   "contorno": "M8,58 C6,68 5,80 7,88 Q12,96 17,100 Q22,96 27,88 C29,80 28,68 26,58 C25,42 21,20 17.5,8 Q17,5.5 16.5,8 C13,20 9,42 8,58 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      17,
+      56,
+      17,
+      11
+     ],
+     "apice": [
+      17,
+      8
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M6.0,0 Q6.0,-14 17.0,-14 Q28.0,-14 28.0,0 Q28.0,14 17.0,14 Q6.0,14 6.0,0 Z",
+    "surcos": "M10.0,0 Q17.0,2 24.0,0 M10.0,0 l-2,-3 M10.0,0 l-2,3 M24.0,0 l2,-3 M24.0,0 l2,3",
+    "centro": "M10.0,-4 Q17.0,-5 24.0,-4 L24.0,4 Q17.0,5 10.0,4 Z"
+   }
+  },
+  "45": {
+   "ancho": 35,
+   "cervical": 58,
+   "tipo": "pre",
+   "contorno": "M8,58 C6,68 5,80 7,88 Q12,95 17.5,98 Q23,95 28,88 C30,80 29,68 27,58 C26,42 22,20 18,8 Q17.5,5.5 17,8 C13,20 9,42 8,58 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Única",
+     "conducto": [
+      17.5,
+      56,
+      17.5,
+      11
+     ],
+     "apice": [
+      17.5,
+      8
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M6.5,0 Q6.5,-14 17.5,-14 Q28.5,-14 28.5,0 Q28.5,14 17.5,14 Q6.5,14 6.5,0 Z",
+    "surcos": "M10.5,0 Q17.5,2 24.5,0 M10.5,0 l-2,-3 M10.5,0 l-2,3 M24.5,0 l2,-3 M24.5,0 l2,3",
+    "centro": "M10.5,-4 Q17.5,-5 24.5,-4 L24.5,4 Q17.5,5 10.5,4 Z"
+   }
+  },
+  "46": {
+   "ancho": 54,
+   "cervical": 56,
+   "tipo": "mol1",
+   "contorno": "M8,56 C5,66 4,78 5,88 Q7,96 12,96 Q17,91 22,96 Q27,99 32,95 Q37,91 42,96 Q47,95 49,88 C50,78 49,66 46,56 C46,40 47,22 44,8 Q42,4 40,8 C38,20 36,32 34,40 Q27,30 20,40 C18,32 16,20 14,8 Q12,4 10,8 C7,22 8,40 8,56 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Distal",
+     "conducto": [
+      14,
+      54,
+      12,
+      12
+     ],
+     "apice": [
+      12,
+      8
+     ]
+    },
+    {
+     "nombre": "Mesial",
+     "conducto": [
+      40,
+      54,
+      42,
+      12
+     ],
+     "apice": [
+      42,
+      8
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M10.0,-9.0 Q10.0,-15 20.2,-15 L37.2,-15 Q44.0,-15 44.0,-7.5 L44.0,9.0 Q44.0,15 33.8,15 L16.8,15 Q10.0,15 10.0,7.5 Z",
+    "surcos": "M16.8,-2.25 L27.0,0.75 L37.2,-1.5 M27.0,0.75 L25.3,-11.25 M27.0,0.75 L29.55,11.25 M16.8,-2.25 l-5.1,-3.75 M37.2,-1.5 l5.1,3.75",
+    "centro": "M16.46,-6.75 L36.35,-6.75 L37.54,6.3 L17.65,6.3 Z"
+   }
+  },
+  "47": {
+   "ancho": 50,
+   "cervical": 57,
+   "tipo": "mol2",
+   "contorno": "M8,57 C5,67 4,79 6,88 Q8,96 13,96 Q18,91 24,96 Q30,99 35,95 Q40,91 44,94 Q46,92 46,86 C47,77 46,66 43,57 C42,42 41,26 38,12 Q36,8 34,12 C32,24 30,34 28,40 Q25,34 22,40 C20,34 18,24 16,12 Q14,8 12,12 C9,26 8,42 8,57 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Distal",
+     "conducto": [
+      14,
+      55,
+      14,
+      15
+     ],
+     "apice": [
+      14,
+      12
+     ]
+    },
+    {
+     "nombre": "Mesial",
+     "conducto": [
+      36,
+      55,
+      36,
+      15
+     ],
+     "apice": [
+      36,
+      12
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M10.0,-8.4 Q10.0,-14 19.0,-14 L34.0,-14 Q40.0,-14 40.0,-7.0 L40.0,8.4 Q40.0,14 31.0,14 L16.0,14 Q10.0,14 10.0,7.0 Z",
+    "surcos": "M16.0,-2.1 L25.0,0.7000000000000001 L34.0,-1.4000000000000001 M25.0,0.7000000000000001 L23.5,-10.5 M25.0,0.7000000000000001 L27.25,10.5 M16.0,-2.1 l-4.5,-3.5 M34.0,-1.4000000000000001 l4.5,3.5",
+    "centro": "M15.7,-6.3 L33.25,-6.3 L34.3,5.88 L16.75,5.88 Z"
+   }
+  },
+  "48": {
+   "ancho": 44,
+   "cervical": 58,
+   "tipo": "mol3",
+   "contorno": "M7,58 C5,68 4,80 6,88 Q9,95 14,95 Q19,90 23,95 Q28,98 32,93 Q37,94 38,86 C39,77 38,67 36,58 C35,44 31,30 25,20 Q22,16 19,20 C13,30 9,44 7,58 Z",
+   "raiz_palatina_punteada": null,
+   "raices": [
+    {
+     "nombre": "Distal",
+     "conducto": [
+      19,
+      56,
+      20,
+      26
+     ],
+     "apice": [
+      20,
+      22
+     ]
+    },
+    {
+     "nombre": "Mesial",
+     "conducto": [
+      25,
+      56,
+      24,
+      26
+     ],
+     "apice": [
+      24,
+      22
+     ]
+    }
+   ],
+   "oclusal": {
+    "contorno": "M9.0,-7.199999999999999 Q9.0,-12 16.8,-12 L29.8,-12 Q35.0,-12 35.0,-6.0 L35.0,7.199999999999999 Q35.0,12 27.2,12 L14.2,12 Q9.0,12 9.0,6.0 Z",
+    "surcos": "M14.2,-1.7999999999999998 L22.0,0.6000000000000001 L29.8,-1.2000000000000002 M22.0,0.6000000000000001 L20.7,-9.0 M22.0,0.6000000000000001 L23.95,9.0 M14.2,-1.7999999999999998 l-3.9,-3.0 M29.8,-1.2000000000000002 l3.9,3.0",
+    "centro": "M13.94,-5.4 L29.15,-5.4 L30.060000000000002,5.04 L14.85,5.04 Z"
+   }
+  }
+ },
+ "dientes": {
+  "11": {
+   "forma": "11",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "12": {
+   "forma": "12",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "13": {
+   "forma": "13",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "14": {
+   "forma": "14",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "15": {
+   "forma": "15",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "16": {
+   "forma": "16",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "17": {
+   "forma": "17",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "18": {
+   "forma": "18",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "21": {
+   "forma": "11",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "22": {
+   "forma": "12",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "23": {
+   "forma": "13",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "24": {
+   "forma": "14",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "25": {
+   "forma": "15",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "26": {
+   "forma": "16",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "27": {
+   "forma": "17",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "28": {
+   "forma": "18",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "31": {
+   "forma": "41",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "32": {
+   "forma": "42",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "33": {
+   "forma": "43",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "34": {
+   "forma": "44",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "35": {
+   "forma": "45",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "36": {
+   "forma": "46",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "37": {
+   "forma": "47",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "38": {
+   "forma": "48",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "41": {
+   "forma": "41",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "42": {
+   "forma": "42",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "43": {
+   "forma": "43",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "44": {
+   "forma": "44",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "45": {
+   "forma": "45",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "46": {
+   "forma": "46",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "47": {
+   "forma": "47",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "48": {
+   "forma": "48",
+   "espejo": false,
+   "arcada": "inferior"
+  }
+ }
+}

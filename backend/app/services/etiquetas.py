@@ -1,6 +1,8 @@
 # app/services/etiquetas.py — Texto legible (el que ve el paciente en un PDF)
 # de los valores internos de los enums.
 
+from collections.abc import Iterable
+
 from app.enums import (
     EstadoGeneralPuente,
     EstadoTratamiento,
@@ -51,7 +53,20 @@ SUPERFICIE = {
     SuperficieDental.oclusal: "oclusal",
     SuperficieDental.vestibular: "vestibular",
     SuperficieDental.cervical: "cervical",
+    SuperficieDental.palatino_lingual: "palatina/lingual",
 }
+
+
+def etiqueta_superficie(superficie: SuperficieDental, dientes: Iterable[int] = ()) -> str:
+    """
+    "palatina" en los superiores (11-28), "lingual" en los inferiores (31-48).
+    Con varios dientes de las dos arcadas (bitacora) o sin diente, cae a
+    "palatina/lingual". El resto de las superficies no depende del diente.
+    """
+    if superficie != SuperficieDental.palatino_lingual:
+        return SUPERFICIE[superficie]
+    caras = {"palatina" if numero // 10 in (1, 2) else "lingual" for numero in dientes}
+    return caras.pop() if len(caras) == 1 else SUPERFICIE[superficie]
 
 # Mismas etiquetas que ve la Dra. en pantalla (CATALOGO de
 # components/Odontograma/catalogo.ts del frontend), para que el documento
@@ -73,7 +88,7 @@ HALLAZGO = {
     TipoHallazgo.corona_defecto: "Corona con defecto",
     TipoHallazgo.carilla_ok: "Carilla en buen estado",
     TipoHallazgo.carilla_defecto: "Carilla con defecto",
-    TipoHallazgo.afraccion: "Afracción",
+    TipoHallazgo.afraccion: "Abfracción",
     TipoHallazgo.diente_impactado: "Diente impactado",
     TipoHallazgo.movimiento_extrusion: "Extrusión",
     TipoHallazgo.movimiento_intrusion: "Intrusión",
@@ -81,6 +96,7 @@ HALLAZGO = {
     TipoHallazgo.movimiento_distalizacion: "Distalización",
     TipoHallazgo.movimiento_rotacion: "Rotación",
     TipoHallazgo.diastema: "Diastema",
+    TipoHallazgo.supernumerario: "Diente supernumerario (SN)",
     TipoHallazgo.resto_radicular: "Resto radicular (RR)",
     TipoHallazgo.exodoncia_simple: "Exodoncia simple (S)",
     TipoHallazgo.exodoncia_quirurgica: "Exodoncia quirúrgica (Q)",
@@ -88,10 +104,15 @@ HALLAZGO = {
 }
 
 
-def etiqueta_hallazgo(tipo: TipoHallazgo, superficie: SuperficieDental | None) -> str:
+def etiqueta_hallazgo(
+    tipo: TipoHallazgo, superficie: SuperficieDental | None, numero_diente: int | None = None
+) -> str:
     """Como etiquetaHallazgo() del frontend: "Caries (oclusal)"."""
     base = HALLAZGO[tipo]
-    return f"{base} ({SUPERFICIE[superficie]})" if superficie else base
+    if not superficie:
+        return base
+    dientes = () if numero_diente is None else (numero_diente,)
+    return f"{base} ({etiqueta_superficie(superficie, dientes)})"
 
 
 def etiqueta_lesion(tipo: TipoLesionApical, raiz: str) -> str:

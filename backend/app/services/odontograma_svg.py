@@ -1,49 +1,57 @@
-# app/services/odontograma_svg.py — Odontograma como SVG para los PDF.
+# app/services/odontograma_svg.py — Odontograma anatomico como SVG para los PDF.
 #
-# Port a Python de OdontogramaBase.tsx del frontend
-# (dentalflow-historia-clinica-frontend/src/components/Odontograma/), mismo
-# dibujo y misma geometria, para que el documento salga de los datos
-# guardados y no de lo que mande un navegador (decision del 26/09/2026,
-# historia clinica completa / Habeas Data). Si cambia un simbolo alla, hay
-# que cambiarlo aca tambien.
+# Todo el dibujo sale de app/data/dientes_anatomicos.json (version
+# 2026-10-05.1), el MISMO archivo que usa el frontend: contornos, linea
+# cervical, raices con el nombre del catalogo, conductos, vista oclusal, layout
+# de las tres vistas y zonas de cada superficie. Aqui no hay formas propias;
+# si cambia una forma o un simbolo, cambia el JSON (y la tabla de la seccion 2
+# de especificacion-tecnica-odontograma-anatomico.md).
 #
-# Diferencias deliberadas con el componente: sin interaccion (seleccion,
-# hover, foco), los estilos van como atributos de presentacion (WeasyPrint
-# no resuelve bien var() dentro del SVG) y el halo blanco de los textos se
-# dibuja con una copia debajo en vez de paint-order.
+# Cada diente se dibuja en tres vistas apiladas:
+#   superior: vestibular (corona y raices) / oclusal / palatina (recortada)
+#   inferior: lingual (recortada) / oclusal / vestibular (raices hacia abajo)
+# y los cuadrantes 2 y 3 son el reflejo de 1 y 4 (lo mesial hacia la linea media).
+#
+# Diferencias deliberadas con el componente de pantalla: sin interaccion
+# (seleccion, hover, foco), los estilos van como atributos de presentacion
+# (WeasyPrint no resuelve bien var() dentro del SVG) y el halo blanco de los
+# textos se dibuja con una copia debajo en vez de paint-order.
 
+import json
+import re
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from html import escape
+from pathlib import Path
 
 from markupsafe import Markup
+
+RUTA_FORMAS = Path(__file__).resolve().parent.parent / "data" / "dientes_anatomicos.json"
+
+
+@lru_cache(maxsize=1)
+def cargar_formas() -> dict:
+    return json.loads(RUTA_FORMAS.read_text(encoding="utf-8"))
+
+
+_JSON = cargar_formas()
+_FORMAS = _JSON["formas"]
+_DIENTES = _JSON["dientes"]
+_LAYOUT = _JSON["layout"]
 
 ARCO_SUPERIOR = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
 ARCO_INFERIOR = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
 
-TOOTH_W = 42
-GAP = 4
-MIDLINE_GAP = 16
-MARGIN_X = 20
-MOV_H = 14
-ROOT_H = 26
-CUELLO_H = 5
-CROWN = 34
-LABEL_H = 20
-BLOCK_H = MOV_H + ROOT_H + CROWN + LABEL_H
-ARCO_SUPERIOR_Y = 8
-ARCO_INFERIOR_Y = ARCO_SUPERIOR_Y + BLOCK_H + 14
-VIEWBOX_WIDTH = MARGIN_X * 2 + 16 * TOOTH_W + 15 * GAP + MIDLINE_GAP
-VIEWBOX_HEIGHT = ARCO_INFERIOR_Y + BLOCK_H + 8
-RADIO_PUENTE = 20
-
-# Paleta (OdontogramaBase.css + tokens.css del frontend).
-AZUL = "#1565c0"
-ROJO = "#c62828"
-SUPERFICIE = "#FFFFFF"
-BORDE = "#D8DED9"
-NUMERO = "#66806F"
-RAIZ = "#eef1ee"
+# Paleta: solo los hex del JSON.
+AZUL = _JSON["colores"]["azul"]
+ROJO = _JSON["colores"]["rojo"]
+TRAZO = _JSON["colores"]["trazo"]
+RAIZ = _JSON["colores"]["raiz"]
+CORONA = _JSON["colores"]["corona"]
+SURCO = _JSON["colores"]["surco"]
+CERVICAL = _JSON["colores"]["cervical"]
+RAIZ_PUNTEADA = _JSON["colores"]["raiz_punteada"]
 
 # Modos para imprimir (04/10/2026): se parte del mismo dibujo a color y se
 # sustituye cada color de la paleta por su equivalente SIN color, para que el
@@ -58,9 +66,10 @@ _GRIS_ROJO = "#a6a6a6"  # lo que en pantalla es rojo (caries, defectos, indicado
 _A_BLANCO_Y_NEGRO = {
     AZUL: _GRIS_AZUL,
     ROJO: _GRIS_ROJO,
-    BORDE: "#000000",   # contorno de los dientes
-    NUMERO: "#000000",  # numeros de diente
+    TRAZO: "#000000",  # contornos de los dientes y numeros
     RAIZ: "#f2f2f2",
+    CERVICAL: "#808080",
+    RAIZ_PUNTEADA: "#999999",
 }
 
 TIPOS_ENDO = (
@@ -79,22 +88,74 @@ TIPOS_MOVIMIENTO = (
 )
 # Orden de pintado: la caries va por encima de una obturacion en la misma cara.
 RELLENO_SUPERFICIE = (
-    ("obturacion_ok", {"fill": AZUL, "stroke": BORDE, "stroke-width": 1}),
-    ("obturacion_defecto", {"fill": AZUL, "stroke": ROJO, "stroke-width": 2}),
-    ("caries", {"fill": ROJO, "stroke": BORDE, "stroke-width": 1}),
+    ("obturacion_ok", {"fill": AZUL}),
+    ("obturacion_defecto", {"fill": AZUL, "stroke": ROJO, "stroke-width": 1.6}),
+    ("caries", {"fill": ROJO}),
 )
-SUP = {"fill": SUPERFICIE, "stroke": BORDE, "stroke-width": 1}
+
+# --- Geometria del conjunto (todo sale del layout del JSON) -------------------------
+
+SEPARACION = _LAYOUT["separacion"]
+SEPARACION_LINEA_MEDIA = _LAYOUT["separacion_linea_media"]
+MARGEN_X = 10
+MARGEN_Y = 8
+FILA_MOVIMIENTOS = 10        # distancia del centro de la fila de flechas al extremo del dibujo
+RADIO_FLECHA = 4
+ESPACIO_ENTRE_ARCADAS = 14
+VISTAS_SUPERIOR = ("vestibular", "oclusal", "palatina")
+VISTAS_INFERIOR = ("lingual", "oclusal", "vestibular")
+
+_TRANSFORM = re.compile(
+    r"translate\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)(?:\s*scale\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\))?"
+)
 
 
-def nombres_raices_por_defecto(numero: int) -> list[str]:
-    """Espejo de diente_anatomia (y de nombresRaicesPorDefecto del frontend)."""
-    cuadrante, posicion = divmod(numero, 10)
-    superior = cuadrante in (1, 2)
-    if posicion >= 6:
-        return ["Mesiovestibular", "Palatina", "Distovestibular"] if superior else ["Mesial", "Distal"]
-    if posicion == 4 and superior:
-        return ["Vestibular", "Palatina"]
-    return ["Única"]
+def _mapa_y(transform: str):
+    """y local de una vista -> y del bloque del diente, segun el transform del layout."""
+    m = _TRANSFORM.fullmatch(transform.strip())
+    ty, sy = float(m.group(2)), float(m.group(4) or 1)
+    return lambda y: ty + sy * y
+
+
+def _ancho(numero: int) -> float:
+    return _FORMAS[_DIENTES[str(numero)]["forma"]]["ancho"]
+
+
+def _fila(numeros: list[int]) -> tuple[list[float], float]:
+    """x relativo de cada diente de la arcada y el ancho total de la fila."""
+    xs, x = [], 0.0
+    for i, n in enumerate(numeros):
+        xs.append(x)
+        x += _ancho(n) + (SEPARACION_LINEA_MEDIA if i == 7 else SEPARACION)
+    return xs, xs[-1] + _ancho(numeros[-1])
+
+
+_XS_SUP, _ANCHO_SUP = _fila(ARCO_SUPERIOR)
+_XS_INF, _ANCHO_INF = _fila(ARCO_INFERIOR)
+VIEWBOX_WIDTH = max(_ANCHO_SUP, _ANCHO_INF) + 2 * MARGEN_X
+
+_SUP, _INF = _LAYOUT["superior"], _LAYOUT["inferior"]
+_NUMERO_Y_INF_DEBAJO = _INF["numero_y"] + FILA_MOVIMIENTOS + 4   # fila de flechas del arco inferior
+ARCO_SUPERIOR_Y = MARGEN_Y + FILA_MOVIMIENTOS + RADIO_FLECHA + 2  # deja lugar a la fila de flechas de arriba
+_ALTO_SUPERIOR = _SUP["numero_y"] + 4
+_TOPE_INFERIOR = _INF["zonas_ausente_y"][0][0]  # (negativo) donde empieza la vista lingual
+ARCO_INFERIOR_Y = ARCO_SUPERIOR_Y + _ALTO_SUPERIOR + ESPACIO_ENTRE_ARCADAS - _TOPE_INFERIOR
+VIEWBOX_HEIGHT = ARCO_INFERIOR_Y + _NUMERO_Y_INF_DEBAJO + RADIO_FLECHA + MARGEN_Y
+
+
+def _posiciones() -> dict[int, tuple[float, float, bool]]:
+    pos = {}
+    for numeros, xs, ancho, y0, superior in (
+        (ARCO_SUPERIOR, _XS_SUP, _ANCHO_SUP, ARCO_SUPERIOR_Y, True),
+        (ARCO_INFERIOR, _XS_INF, _ANCHO_INF, ARCO_INFERIOR_Y, False),
+    ):
+        desplazamiento = (VIEWBOX_WIDTH - ancho) / 2  # cada fila centrada en la linea media
+        for n, x in zip(numeros, xs):
+            pos[n] = (desplazamiento + x, y0, superior)
+    return pos
+
+
+POSICION = _posiciones()
 
 
 # --- SVG minimo -------------------------------------------------------------------
@@ -111,6 +172,10 @@ def _el(tag: str, **a) -> str:
     return f"<{tag}{_attrs({k.replace('_', '-'): v for k, v in a.items()})}/>"
 
 
+def _g(contenido: str, **a) -> str:
+    return f"<g{_attrs({k.replace('_', '-'): v for k, v in a.items()})}>{contenido}</g>"
+
+
 def _puntos(ps) -> str:
     return " ".join(f"{_n(x)},{_n(y)}" for x, y in ps)
 
@@ -119,112 +184,324 @@ def _linea(x1, y1, x2, y2, **estilo) -> str:
     return _el("line", x1=x1, y1=y1, x2=x2, y2=y2, **estilo)
 
 
+def _rect(x, y, w, h, **estilo) -> str:
+    return _el("rect", x=x, y=y, width=w, height=h, **estilo)
+
+
 def _texto(x, y, contenido, color, tamano, anchor="start", halo=True) -> str:
     base = {"x": _n(x), "y": _n(y), "font-family": "Inter, sans-serif", "font-size": tamano,
             "font-weight": 700, "text-anchor": anchor}
     # Halo blanco (paint-order: stroke en el frontend): copia debajo con trazo.
-    debajo = (f"<text{_attrs(base | {'fill': SUPERFICIE, 'stroke': SUPERFICIE, 'stroke-width': 2.5})}>"
+    debajo = (f"<text{_attrs(base | {'fill': CORONA, 'stroke': CORONA, 'stroke-width': 2.5})}>"
               f"{escape(contenido)}</text>") if halo else ""
     return debajo + f"<text{_attrs(base | {'fill': color})}>{escape(contenido)}</text>"
 
 
-# --- Geometria (identica al frontend) ------------------------------------------------
-
-def _x_para_indice(i: int) -> float:
-    return MARGIN_X + i * (TOOTH_W + GAP) + (MIDLINE_GAP if i >= 8 else 0)
-
+# --- Estado de un diente ------------------------------------------------------------
 
 @dataclass
-class _Geo:
-    cx: float
-    crown_x: float
-    crown_top: float
-    crown_cy: float
-    oclusal_y: float
-    hacia_oclusal: int
-    cuello_y: float
-    raiz_base_y: float
-    apice_y: float
-    mov_y: float
-    numero_y: float
-    mesial_a_la_derecha: bool
-    superficies: dict
+class _Estado:
+    tipos: set
+    ausente: bool
+    implante: bool
+    tipo_endo: str | None
+    movimientos: list
+    exodoncia: str | None
+    rellenos: list          # [(tipo, superficie)] de caries / obturaciones, en orden de pintado
+    diastemas: list         # superficies ("mesial" | "distal")
+    lesiones: list
+    en_puente: object = None
+
+    def tiene(self, tipo: str) -> bool:
+        return tipo in self.tipos
 
 
-def _geometria(numero: int, x: float, y0: float, superior: bool) -> _Geo:
-    cx = x + TOOTH_W / 2
-    crown_x = x + (TOOTH_W - CROWN) / 2
-    crown_top = y0 + MOV_H + ROOT_H if superior else y0 + LABEL_H
-    crown_bottom = crown_top + CROWN
-    mesial_a_la_derecha = numero // 10 in (1, 4)
-    a, b, s, i = crown_x, crown_top, CROWN, 11
-    j = s - i
-    arriba = [(a, b), (a + s, b), (a + j, b + i), (a + i, b + i)]
-    abajo = [(a, b + s), (a + s, b + s), (a + j, b + j), (a + i, b + j)]
-    izquierda = [(a, b), (a + i, b + i), (a + i, b + j), (a, b + s)]
-    derecha = [(a + s, b), (a + j, b + i), (a + j, b + j), (a + s, b + s)]
-    centro = [(a + i, b + i), (a + j, b + i), (a + j, b + j), (a + i, b + j)]
-    return _Geo(
-        cx=cx,
-        crown_x=crown_x,
-        crown_top=crown_top,
-        crown_cy=crown_top + CROWN / 2,
-        oclusal_y=crown_bottom if superior else crown_top,
-        hacia_oclusal=1 if superior else -1,
-        cuello_y=crown_top - CUELLO_H if superior else crown_bottom,
-        raiz_base_y=crown_top - CUELLO_H if superior else crown_bottom + CUELLO_H,
-        apice_y=y0 + MOV_H + 2 if superior else crown_bottom + ROOT_H - 2,
-        mov_y=y0 + MOV_H / 2 if superior else crown_bottom + ROOT_H + MOV_H / 2,
-        numero_y=crown_bottom + LABEL_H - 4 if superior else y0 + 12,
-        mesial_a_la_derecha=mesial_a_la_derecha,
-        # Mismo orden de dibujo que Object.values() en el frontend.
-        superficies={
-            "oclusal": centro,
-            "vestibular": arriba if superior else abajo,
-            "lingual": abajo if superior else arriba,
-            "mesial": derecha if mesial_a_la_derecha else izquierda,
-            "distal": izquierda if mesial_a_la_derecha else derecha,
-        },
+def _estado(hallazgos, lesiones, en_puente) -> _Estado:
+    tipos = {h.tipo_hallazgo.value for h in hallazgos}
+    # Dentro de un puente activo, el estado del diente sale de su condicion
+    # individual, no de los hallazgos.
+    condicion = en_puente.condicion_individual.value if en_puente else None
+    ausente = condicion == "ausente" if condicion else "ausente" in tipos
+    implante = condicion == "implante" if condicion else "implante" in tipos
+    if condicion:
+        tipo_endo = condicion if condicion in TIPOS_ENDO else None
+    else:
+        tipo_endo = next((h.tipo_hallazgo.value for h in hallazgos if h.tipo_hallazgo.value in TIPOS_ENDO), None)
+    rellenos = [
+        (tipo, h.superficie.value)
+        for tipo, _ in RELLENO_SUPERFICIE
+        for h in hallazgos
+        if h.tipo_hallazgo.value == tipo and h.superficie
+    ]
+    return _Estado(
+        tipos=tipos,
+        ausente=ausente,
+        implante=implante and not ausente,
+        tipo_endo=tipo_endo,
+        movimientos=[t for t in TIPOS_MOVIMIENTO if t in tipos],
+        exodoncia="Q" if "exodoncia_quirurgica" in tipos else "S" if "exodoncia_simple" in tipos else None,
+        rellenos=rellenos,
+        diastemas=[h.superficie.value for h in hallazgos if h.tipo_hallazgo.value == "diastema" and h.superficie],
+        lesiones=lesiones,
+        en_puente=en_puente,
     )
 
 
-def _posiciones_raices(cx: float, n: int) -> list[float]:
-    if n >= 3:
-        return [cx - 10, cx, cx + 10]
-    if n == 2:
-        return [cx - 7, cx + 7]
-    return [cx]
+# --- Zonas de cada superficie (seccion "zonas" del JSON) ---------------------------------
+
+def _zona(superficie: str, vista: str, ancho: float, cervical: float, centro: str, **estilo) -> str | None:
+    """
+    Elemento SVG (en coordenadas locales de la vista, con `estilo`) de la zona
+    de una superficie, o None si esa cara no se ve en esa vista. vista:
+    "vestibular", "palatina" (tambien la lingual) u "oclusal". Se recorta
+    despues con el contorno del diente.
+    """
+    w = ancho
+    oclusal = vista == "oclusal"
+    if superficie == "oclusal":
+        return _el("path", d=centro, **estilo) if oclusal else None
+    if superficie in ("mesial", "distal"):
+        mesial = superficie == "mesial"
+        if oclusal:
+            x0, x1 = (0.78 * w, w + 6) if mesial else (-6, 0.22 * w)
+            return _rect(x0, -40, x1 - x0, 80, **estilo)
+        x0, x1 = (0.73 * w, w + 6) if mesial else (-6, 0.27 * w)
+        return _rect(x0, cervical + 6, x1 - x0, 40, **estilo)
+    if superficie == "vestibular":
+        if oclusal:
+            return _rect(-6, -40, w + 12, 31, **estilo)  # franja y <= -9
+        if vista == "vestibular":
+            return _el("ellipse", cx=w / 2, cy=cervical + 18, rx=0.16 * w, ry=7, **estilo)
+        return None
+    if superficie == "palatino_lingual":
+        if oclusal:
+            return _rect(-6, 9, w + 12, 31, **estilo)    # franja y >= 9
+        if vista == "palatina":
+            return _el("ellipse", cx=w / 2, cy=cervical + 18, rx=0.17 * w, ry=7.5, **estilo)
+        return None
+    if superficie == "cervical":
+        return _rect(-6, cervical, w + 12, 6, **estilo) if vista == "vestibular" else None
+    return None
 
 
-def _x_de_raiz(nombre: str, nombres: list[str], g: _Geo) -> float:
-    xs = _posiciones_raices(g.cx, len(nombres))
-    mesial_x = xs[-1] if g.mesial_a_la_derecha else xs[0]
-    distal_x = xs[0] if g.mesial_a_la_derecha else xs[-1]
-    if len(xs) == 1:
-        return xs[0]
-    if nombre.startswith("Mesio") or nombre == "Mesial":
-        return mesial_x
-    if nombre.startswith("Disto") or nombre == "Distal":
-        return distal_x
-    if len(xs) == 3 and nombre == "Palatina":
-        return xs[1]
-    return xs[max(0, nombres.index(nombre) if nombre in nombres else 0)]
+# --- Vistas -----------------------------------------------------------------------------
+
+class _Diente:
+    """Forma y recortes de un diente (ids unicos por numero dentro del SVG)."""
+
+    def __init__(self, numero: int):
+        self.numero = numero
+        info = _DIENTES[str(numero)]
+        self.forma = _FORMAS[info["forma"]]
+        self.espejo = info["espejo"]
+        self.superior = info["arcada"] == "superior"
+        self.ancho = self.forma["ancho"]
+        self.cervical = self.forma["cervical"]
+        self.contorno = self.forma["contorno"]
+        self.oclusal = self.forma["oclusal"]
+        self.id_contorno, self.id_corona = f"cc{numero}", f"ck{numero}"
+        self.id_raiz, self.id_recorte = f"cr{numero}", f"cw{numero}"
+        self.id_oclusal = f"co{numero}"
+
+    def definiciones(self) -> str:
+        c, w = self.cervical, self.ancho
+        # Recorte de las vistas palatina/lingual: desde cervical-12 hasta y=112 (corona + inicio de raiz).
+        clips = {
+            self.id_contorno: _el("path", d=self.contorno),
+            self.id_corona: _rect(-10, c, w + 20, 130 - c),
+            self.id_raiz: _rect(-10, -10, w + 20, c + 10),
+            self.id_recorte: _rect(-10, c - 12, w + 20, 112 - (c - 12)),
+            self.id_oclusal: _el("path", d=self.oclusal["contorno"]),
+        }
+        return "<defs>" + "".join(f'<clipPath id="{i}">{c_}</clipPath>' for i, c_ in clips.items()) + "</defs>"
+
+    # -- piezas comunes ---------------------------------------------------------------
+
+    def _rellenos(self, e: _Estado, vista: str) -> str:
+        """Caries y obturaciones en la(s) zona(s) de su superficie, en esta vista."""
+        id_clip = self.id_oclusal if vista == "oclusal" else self.id_contorno
+        piezas = []
+        for tipo, estilo in RELLENO_SUPERFICIE:
+            for t, superficie in e.rellenos:
+                if t != tipo:
+                    continue
+                z = _zona(superficie, vista, self.ancho, self.cervical, self.oclusal["centro"], **estilo)
+                if z:
+                    piezas.append(z)
+        return _g("".join(piezas), clip_path=f"url(#{id_clip})") if piezas else ""
+
+    def _contorno_corona(self, e: _Estado, vista: str) -> str:
+        """Corona protesica: contorno de la corona en azul (y rojo por fuera si tiene defecto)."""
+        if not (e.tiene("corona_ok") or e.tiene("corona_defecto")):
+            return ""
+        if vista == "oclusal":
+            trazo = lambda **est: _el("path", d=self.oclusal["contorno"], fill="none", **est)  # noqa: E731
+            envoltura = lambda s: s  # noqa: E731
+        else:
+            trazo = lambda **est: _el("path", d=self.contorno, fill="none", **est)  # noqa: E731
+            envoltura = lambda s: _g(s, clip_path=f"url(#{self.id_corona})")  # noqa: E731
+        fuera = trazo(stroke=ROJO, stroke_width=5) if e.tiene("corona_defecto") else ""
+        return envoltura(fuera + trazo(stroke=AZUL, stroke_width=2))
+
+    def _marcas_corona(self, e: _Estado, vista: str) -> str:
+        """Lo que se ve igual en vestibular y palatina: rellenos y corona protesica."""
+        return self._rellenos(e, vista) + self._contorno_corona(e, vista)
+
+    def _tornillo(self) -> tuple[str, float]:
+        """Implante (vista vestibular): tornillo azul en el lugar de la raiz. Devuelve (svg, y del apice)."""
+        c, cx = self.cervical, self.ancho / 2
+        y_apice = min(r["apice"][1] for r in self.forma["raices"]) + 3
+        y_base = c - 2
+        imp = {"stroke": AZUL, "stroke-width": 1.5, "stroke-linecap": "round"}
+        s = [_linea(cx - 6, y_base, cx + 6, y_base, **imp),
+             _linea(cx, y_base, cx, y_apice, **(imp | {"stroke-width": 3}))]
+        for f in (0.25, 0.45, 0.65, 0.85):
+            yy = y_base + (y_apice - y_base) * f
+            s.append(_linea(cx - 4.5, yy, cx + 4.5, yy, **imp))
+        return "".join(s), y_apice
+
+    def _conductos(self, tipo: str) -> str:
+        azul = {"stroke": AZUL, "stroke-width": 2, "stroke-linecap": "round"}
+        grueso = {"stroke": AZUL, "stroke-width": 3.5, "stroke-linecap": "round"}
+        rojo = {"stroke": ROJO, "stroke-width": 2, "stroke-linecap": "round"}
+        s = []
+        for r in self.forma["raices"]:
+            x1, y1, x2, y2 = r["conducto"]
+            l = lambda dx, est: _linea(x1 + dx, y1, x2 + dx, y2, **est)  # noqa: E731
+            s.append({
+                "conducto_ok": lambda: l(0, azul),
+                "conducto_ok_perno": lambda: l(0, grueso),
+                "conducto_defecto": lambda: l(-1.5, azul) + l(1.5, rojo),
+                "conducto_perno_defecto": lambda: l(-2, grueso) + l(2.5, rojo),
+                "conducto_indicado": lambda: l(0, rojo),
+            }[tipo]())
+        return "".join(s)
+
+    def _apice(self, nombre: str) -> tuple[float, float]:
+        raices = self.forma["raices"]
+        raiz = next((r for r in raices if r["nombre"] == nombre), raices[0])
+        return raiz["apice"]
+
+    # -- vistas ------------------------------------------------------------------------
+
+    def vista_vestibular(self, e: _Estado) -> str:
+        c, w = self.cervical, self.ancho
+        contorno = self.contorno
+        if e.ausente:
+            return _el("path", d=contorno, fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4, stroke_dasharray="3 2")
+
+        d = []
+        resto = e.tiene("resto_radicular")
+        if self.forma["raiz_palatina_punteada"] and not e.implante:
+            d.append(_el("path", d=self.forma["raiz_palatina_punteada"], fill="none", stroke=RAIZ_PUNTEADA,
+                         stroke_width=1, stroke_dasharray="2 2"))
+        if not e.implante:
+            d.append(_el("path", d=contorno, fill=RAIZ))
+        if not resto:
+            d.append(_g(_rect(-10, c, w + 20, 130 - c, fill=CORONA), clip_path=f"url(#{self.id_contorno})"))
+        d.append(self._rellenos(e, "vestibular"))
+        d.append(_g(_linea(-10, c, w + 10, c, stroke=CERVICAL, stroke_width=1), clip_path=f"url(#{self.id_contorno})"))
+
+        # Carilla: banda azul sobre la cara vestibular de la corona (+ linea roja si tiene defecto).
+        if e.tiene("carilla_ok") or e.tiene("carilla_defecto"):
+            banda = _rect(-6, c + 27, w + 12, 8, fill=AZUL)
+            if e.tiene("carilla_defecto"):
+                banda += _linea(-6, c + 36.5, w + 6, c + 36.5, stroke=ROJO, stroke_width=1.5)
+            d.append(_g(banda, clip_path=f"url(#{self.id_contorno})"))
+
+        # Conductos (en cada raiz del JSON) o tornillo del implante.
+        y_apice_tornillo = None
+        if e.implante:
+            tornillo, y_apice_tornillo = self._tornillo()
+            d.append(tornillo)
+        elif e.tipo_endo:
+            d.append(self._conductos(e.tipo_endo))
+
+        # Contorno del diente. Con resto radicular la corona va en punteado.
+        if resto:
+            d.append(_g(_el("path", d=contorno, fill="none", stroke=TRAZO, stroke_width=1.1),
+                        clip_path=f"url(#{self.id_raiz})"))
+            d.append(_g(_el("path", d=contorno, fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4,
+                            stroke_dasharray="3 2"), clip_path=f"url(#{self.id_corona})"))
+        elif e.implante:
+            # Sin raices: solo la corona (y su borde cervical).
+            d.append(_g(_el("path", d=contorno, fill="none", stroke=TRAZO, stroke_width=1.1),
+                        clip_path=f"url(#{self.id_corona})"))
+            d.append(_g(_linea(-10, c, w + 10, c, stroke=TRAZO, stroke_width=1.1),
+                        clip_path=f"url(#{self.id_contorno})"))
+        else:
+            d.append(_el("path", d=contorno, fill="none", stroke=TRAZO, stroke_width=1.1))
+        d.append(self._contorno_corona(e, "vestibular"))
+
+        # Abfraccion: cuna roja en la zona cervical, junto a la linea cervical.
+        if e.tiene("afraccion"):
+            mitad = min(0.16 * w, 7)
+            d.append(_el("polygon", fill=ROJO, points=_puntos([(w / 2 - mitad, c), (w / 2 + mitad, c),
+                                                              (w / 2, c + 8)])))
+
+        # Lesion apical: circulo rojo en el apice de la raiz por nombre; periimplantitis en el del tornillo.
+        for les in e.lesiones:
+            if les.tipo.value == "periimplantitis":
+                if y_apice_tornillo is None:
+                    continue
+                lx, ly = w / 2, y_apice_tornillo
+            else:
+                lx, ly = self._apice(les.raiz)
+            d.append(_el("circle", cx=lx, cy=ly - 1.5, r=3.5, fill=ROJO, stroke=CORONA, stroke_width=1))
+        return "".join(d)
+
+    def vista_palatina(self, e: _Estado) -> str:
+        """Palatina (superiores) o lingual (inferiores): corona y el inicio de la raiz."""
+        c, w = self.cervical, self.ancho
+        contorno = self.contorno
+        if e.ausente:
+            return _el("path", d=contorno, fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4, stroke_dasharray="3 2")
+        resto = e.tiene("resto_radicular")
+        d = []
+        if not e.implante:
+            d.append(_el("path", d=contorno, fill=RAIZ))
+        if not resto:
+            d.append(_g(_rect(-10, c, w + 20, 130 - c, fill=CORONA), clip_path=f"url(#{self.id_contorno})"))
+        d.append(self._rellenos(e, "palatina"))
+        d.append(_g(_linea(-10, c, w + 10, c, stroke=CERVICAL, stroke_width=1), clip_path=f"url(#{self.id_contorno})"))
+        if resto:
+            d.append(_g(_el("path", d=contorno, fill="none", stroke=TRAZO, stroke_width=1.1),
+                        clip_path=f"url(#{self.id_raiz})"))
+            d.append(_g(_el("path", d=contorno, fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4,
+                            stroke_dasharray="3 2"), clip_path=f"url(#{self.id_corona})"))
+        else:
+            d.append(_el("path", d=contorno, fill="none", stroke=TRAZO, stroke_width=1.1))
+        d.append(self._contorno_corona(e, "palatina"))
+        if e.implante:
+            # Sin raices: se oculta lo que queda por encima de la linea cervical.
+            return _g("".join(d), clip_path=f"url(#{self.id_corona})")
+        return "".join(d)
+
+    def vista_oclusal(self, e: _Estado) -> str:
+        o = self.oclusal
+        if e.ausente:
+            return _el("path", d=o["contorno"], fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4,
+                       stroke_dasharray="3 2")
+        d = [_el("path", d=o["contorno"], fill=CORONA)]
+        d.append(self._rellenos(e, "oclusal"))
+        d.append(_el("path", d=o["surcos"], fill="none", stroke=SURCO, stroke_width=0.8, stroke_linecap="round",
+                     stroke_linejoin="round"))
+        if e.tiene("resto_radicular"):
+            d.append(_el("path", d=o["contorno"], fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4,
+                         stroke_dasharray="3 2"))
+        else:
+            d.append(_el("path", d=o["contorno"], fill="none", stroke=TRAZO, stroke_width=1.1))
+        # Carilla: banda azul en la franja vestibular de la oclusal (+ linea roja si tiene defecto).
+        if e.tiene("carilla_ok") or e.tiene("carilla_defecto"):
+            franja = _rect(-6, -40, self.ancho + 12, 31, fill=AZUL)
+            if e.tiene("carilla_defecto"):
+                franja += _linea(-6, -9, self.ancho + 6, -9, stroke=ROJO, stroke_width=1.5)
+            d.append(_g(franja, clip_path=f"url(#{self.id_oclusal})"))
+        d.append(self._contorno_corona(e, "oclusal"))
+        return "".join(d)
 
 
-def _linea_endo(tipo: str, rx: float, g: _Geo) -> str:
-    y1, y2 = g.raiz_base_y, g.apice_y + 1
-    azul = {"stroke": AZUL, "stroke-width": 2, "stroke-linecap": "round"}
-    grueso = {"stroke": AZUL, "stroke-width": 3.5, "stroke-linecap": "round"}
-    rojo = {"stroke": ROJO, "stroke-width": 2, "stroke-linecap": "round"}
-    l = lambda dx, est: _linea(rx + dx, y1, rx + dx, y2, **est)  # noqa: E731
-    return {
-        "conducto_ok": lambda: l(0, azul),
-        "conducto_ok_perno": lambda: l(0, grueso),
-        "conducto_defecto": lambda: l(-1.5, azul) + l(1.5, rojo),
-        "conducto_perno_defecto": lambda: l(-2, grueso) + l(2.5, rojo),
-        "conducto_indicado": lambda: l(0, rojo),
-    }[tipo]()
-
+# --- Simbolos fuera de las vistas ---------------------------------------------------------
 
 MOV = {"fill": "none", "stroke": AZUL, "stroke-width": 1.5, "stroke-linecap": "round", "stroke-linejoin": "round"}
 
@@ -239,13 +516,11 @@ def _flecha(x, y, dx, dy) -> str:
     return _linea(x1, y1, x2, y2, **MOV) + _el("polyline", points=_puntos(cabeza), **MOV)
 
 
-def _simbolo_movimiento(tipo: str, x: float, g: _Geo) -> str:
-    y = g.mov_y
-    mesial = 1 if g.mesial_a_la_derecha else -1
+def _simbolo_movimiento(tipo: str, x: float, y: float, hacia_oclusal: int, mesial: int) -> str:
     if tipo == "movimiento_extrusion":
-        return _flecha(x, y, 0, g.hacia_oclusal)
+        return _flecha(x, y, 0, hacia_oclusal)
     if tipo == "movimiento_intrusion":
-        return _flecha(x, y, 0, -g.hacia_oclusal)
+        return _flecha(x, y, 0, -hacia_oclusal)
     if tipo == "movimiento_mesializacion":
         return _flecha(x, y, mesial, 0)
     if tipo == "movimiento_distalizacion":
@@ -255,165 +530,115 @@ def _simbolo_movimiento(tipo: str, x: float, g: _Geo) -> str:
     )
 
 
-def _circulo_corona(cx, cy, r, defecto: bool) -> str:
+def _diente(numero: int, x: float, y0: float, hallazgos, lesiones, en_puente) -> str:
+    t = _Diente(numero)
+    e = _estado(hallazgos, lesiones, en_puente)
+    w, c, superior = t.ancho, t.cervical, t.superior
+    capa = _SUP if superior else _INF
+    nombres_vistas = VISTAS_SUPERIOR if superior else VISTAS_INFERIOR
+    mesial_a_la_derecha = not t.espejo
+    centro_corona_local = (c + 100) / 2
+
+    vistas = []
+    for nombre in nombres_vistas:
+        if nombre == "oclusal":
+            dibujo = t.vista_oclusal(e)
+        else:
+            dibujo = t.vista_vestibular(e) if nombre == "vestibular" else t.vista_palatina(e)
+        if nombre in ("palatina", "lingual"):
+            dibujo = _g(dibujo, clip_path=f"url(#{t.id_recorte})")
+        vistas.append(_g(dibujo, transform=capa[nombre], data_vista=nombre))
+    cuerpo = "".join(vistas)
+    if t.espejo:
+        cuerpo = _g(cuerpo, transform=f"translate({_n(w)} 0) scale(-1 1)")
+
+    # Todo lo que sigue va fuera del grupo reflejado: textos y flechas no se espejan.
+    extra = []
+    y_vest = _mapa_y(capa["vestibular"])
+    zonas = capa["zonas_ausente_y"]
+    cx = w / 2
+
+    if e.tiene("resto_radicular"):
+        extra.append(_texto(cx, y_vest(centro_corona_local) + 4, "RR", ROJO, 10, "middle"))
+    if e.tiene("diente_impactado"):
+        extra.append(_texto(cx, y_vest(centro_corona_local) + 4, "IMP", ROJO, 9, "middle"))
+    if e.tiene("spp"):
+        extra.append(_texto(cx, y_vest(c + 31), "SPP", AZUL, 7.5, "middle"))
+
+    # Exodoncia: X roja sobre las tres vistas (+ S / Q junto al numero).
+    if e.exodoncia:
+        ex = {"stroke": ROJO, "stroke-width": 2.5, "stroke-linecap": "round"}
+        for ya, yb in zonas:
+            extra.append(_linea(3, ya, w - 3, yb, **ex))
+            extra.append(_linea(w - 3, ya, 3, yb, **ex))
+
+    # Diastema: dos lineas verticales azules entre el diente y su vecino, del lado indicado.
+    for superficie in e.diastemas:
+        hacia_derecha = (superficie == "mesial") == mesial_a_la_derecha
+        ys = sorted((y_vest(c - 4), y_vest(102)))
+        for dd in (1.5, 4.5):
+            xx = w + dd if hacia_derecha else -dd
+            extra.append(_linea(xx, ys[0], xx, ys[1], stroke=AZUL, stroke_width=1.5))
+
+    # Ausente: linea azul vertical que atraviesa las tres vistas (no en un pontico).
+    if e.ausente and not en_puente:
+        for ya, yb in zonas:
+            extra.append(_linea(cx, ya, cx, yb, stroke=AZUL, stroke_width=3))
+
+    # Movimientos: una fila por fuera de los apices (arriba en los superiores, abajo en los inferiores).
+    if e.movimientos:
+        ym = -FILA_MOVIMIENTOS if superior else _NUMERO_Y_INF_DEBAJO
+        hacia_oclusal = 1 if superior else -1
+        mesial = 1 if mesial_a_la_derecha else -1
+        for idx, tipo in enumerate(e.movimientos):
+            extra.append(_simbolo_movimiento(tipo, cx - ((len(e.movimientos) - 1) * 10) / 2 + idx * 10, ym,
+                                             hacia_oclusal, mesial))
+
+    numero_y = capa["numero_y"]
+    if e.exodoncia:
+        extra.append(_texto(cx - 9, numero_y, e.exodoncia, ROJO, 7.5, "end"))
+    if e.tiene("supernumerario"):
+        extra.append(_texto(cx + 9, numero_y, "SN", ROJO, 7.5))
+    extra.append(f'<text x="{_n(cx)}" y="{_n(numero_y)}" text-anchor="middle" font-family="Inter, sans-serif" '
+                 f'font-size="9" fill="{TRAZO}">{numero}</text>')
+    return _g(t.definiciones() + cuerpo + "".join(extra), transform=f"translate({_n(x)} {_n(y0)})",
+              data_diente=numero)
+
+
+def _radio_puente(numero: int) -> float:
+    return min(max(0.42 * _ancho(numero), 12), 20)
+
+
+def _circulo_puente(cx, cy, r, defecto: bool) -> str:
     s = _el("circle", cx=cx, cy=cy, r=r, fill="none", stroke=AZUL, stroke_width=2.5)
     if defecto:
         s += _el("circle", cx=cx, cy=cy, r=r + 2.5, fill="none", stroke=ROJO, stroke_width=2)
     return s
 
 
-def _diente(numero, x, y0, superior, nombres_raices, hallazgos, lesiones, en_puente) -> str:
-    g = _geometria(numero, x, y0, superior)
-    tipos = {h.tipo_hallazgo.value for h in hallazgos}
-    tiene = tipos.__contains__
-
-    # Dentro de un puente activo, el estado del diente sale de su condicion
-    # individual, no de los hallazgos.
-    condicion = en_puente.condicion_individual.value if en_puente else None
-    ausente = condicion == "ausente" if condicion else tiene("ausente")
-    implante = condicion == "implante" if condicion else tiene("implante")
-    if condicion:
-        tipo_endo = condicion if condicion in TIPOS_ENDO else None
-    else:
-        tipo_endo = next((h.tipo_hallazgo.value for h in hallazgos if h.tipo_hallazgo.value in TIPOS_ENDO), None)
-    movimientos = [t for t in TIPOS_MOVIMIENTO if tiene(t)]
-    exodoncia = "Q" if tiene("exodoncia_quirurgica") else "S" if tiene("exodoncia_simple") else None
-    raices = _posiciones_raices(g.cx, len(nombres_raices))
-    borde_vestibular_y = g.crown_top if superior else g.crown_top + CROWN
-    hacia_afuera = -g.hacia_oclusal
-
-    d = []
-    if not ausente and not implante:
-        for rx in raices:
-            d.append(_el("polygon", points=_puntos([(rx - 3.5, g.raiz_base_y), (rx + 3.5, g.raiz_base_y),
-                                                    (rx + 1, g.apice_y), (rx - 1, g.apice_y)]),
-                         fill=RAIZ, stroke=BORDE, stroke_width=1))
-        if tipo_endo:
-            d.extend(_linea_endo(tipo_endo, rx, g) for rx in raices)
-    if implante and not ausente:
-        imp = {"stroke": AZUL, "stroke-width": 1.5, "stroke-linecap": "round"}
-        d.append(_linea(g.cx - 6, g.raiz_base_y, g.cx + 6, g.raiz_base_y, **imp))
-        d.append(_linea(g.cx, g.raiz_base_y, g.cx, g.apice_y, **(imp | {"stroke-width": 3})))
-        for f in (0.25, 0.45, 0.65, 0.85):
-            yy = g.raiz_base_y + (g.apice_y - g.raiz_base_y) * f
-            d.append(_linea(g.cx - 4.5, yy, g.cx + 4.5, yy, **imp))
-
-    # Lesion apical / periimplantitis: circulo rojo en el apice.
-    if not ausente:
-        for l in lesiones:
-            lx = g.cx if l.tipo.value == "periimplantitis" else _x_de_raiz(l.raiz, nombres_raices, g)
-            d.append(_el("circle", cx=lx, cy=g.apice_y - g.hacia_oclusal * 1.5, r=3.5,
-                         fill=ROJO, stroke=SUPERFICIE, stroke_width=1))
-
-    # Cuello (superficie cervical)
-    if not ausente:
-        d.append(_el("rect", x=g.crown_x + 3, y=g.cuello_y, width=CROWN - 6, height=CUELLO_H, **SUP))
-
-    # Corona dividida en caras
-    if ausente:
-        d.append(_el("rect", x=g.crown_x, y=g.crown_top, width=CROWN, height=CROWN, rx=3, fill="none",
-                     stroke=BORDE, stroke_width=1.5, stroke_dasharray="3 2"))
-    else:
-        d.extend(_el("polygon", points=_puntos(ps), **SUP) for ps in g.superficies.values())
-        for tipo, estilo in RELLENO_SUPERFICIE:
-            for h in hallazgos:
-                if h.tipo_hallazgo.value != tipo or not h.superficie:
-                    continue
-                if h.superficie.value == "cervical":
-                    d.append(_el("rect", x=g.crown_x + 3, y=g.cuello_y, width=CROWN - 6, height=CUELLO_H, **estilo))
-                else:
-                    d.append(_el("polygon", points=_puntos(g.superficies[h.superficie.value]), **estilo))
-
-    # Carilla: banda sobre el borde vestibular
-    if tiene("carilla_ok") or tiene("carilla_defecto"):
-        if tiene("carilla_defecto"):
-            yb = borde_vestibular_y + hacia_afuera * 1.5
-            d.append(_linea(g.crown_x, yb, g.crown_x + CROWN, yb, stroke=ROJO, stroke_width=2))
-        yc = borde_vestibular_y - hacia_afuera * 2
-        d.append(_linea(g.crown_x + 1, yc, g.crown_x + CROWN - 1, yc, stroke=AZUL, stroke_width=4))
-
-    # Corona protesica
-    if tiene("corona_ok") or tiene("corona_defecto"):
-        d.append(_circulo_corona(g.cx, g.crown_cy, 20, tiene("corona_defecto")))
-
-    # Afraccion: muesca roja en el borde incisal/oclusal
-    if tiene("afraccion"):
-        d.append(_el("polygon", fill=ROJO, points=_puntos([
-            (g.cx - 5, g.oclusal_y + g.hacia_oclusal * 6),
-            (g.cx + 5, g.oclusal_y + g.hacia_oclusal * 6),
-            (g.cx, g.oclusal_y - g.hacia_oclusal * 2),
-        ])))
-
-    if tiene("resto_radicular"):
-        d.append(_texto(g.cx, g.crown_cy + 4, "RR", ROJO, 10, "middle"))
-    if tiene("spp"):
-        d.append(_texto(g.cx, g.crown_top + CROWN - 3 if superior else g.crown_top + 9, "SPP", AZUL, 7.5, "middle"))
-
-    # Exodoncia: X roja sobre la corona (+ S / Q junto al numero)
-    if exodoncia:
-        ex = {"stroke": ROJO, "stroke-width": 2.5, "stroke-linecap": "round"}
-        d.append(_linea(g.crown_x, g.crown_top, g.crown_x + CROWN, g.crown_top + CROWN, **ex))
-        d.append(_linea(g.crown_x + CROWN, g.crown_top, g.crown_x, g.crown_top + CROWN, **ex))
-
-    # Diastema: dos lineas verticales paralelas del lado indicado
-    for h in hallazgos:
-        if h.tipo_hallazgo.value != "diastema" or not h.superficie:
-            continue
-        hacia_derecha = (h.superficie.value == "mesial") == g.mesial_a_la_derecha
-        borde = g.crown_x + CROWN if hacia_derecha else g.crown_x
-        signo = 1 if hacia_derecha else -1
-        for dd in (2.5, 5.5):
-            d.append(_linea(borde + signo * dd, g.crown_top - 2, borde + signo * dd, g.crown_top + CROWN + 2,
-                            stroke=AZUL, stroke_width=1.5))
-
-    # Ausente: linea azul vertical sobre todo el diente (no en un pontico).
-    if ausente and not en_puente:
-        d.append(_linea(g.cx, min(g.apice_y, g.oclusal_y), g.cx, max(g.apice_y, g.oclusal_y),
-                        stroke=AZUL, stroke_width=3))
-
-    # Movimientos: fila apical, fuera de la corona
-    for idx, tipo in enumerate(movimientos):
-        d.append(_simbolo_movimiento(tipo, g.cx - ((len(movimientos) - 1) * 10) / 2 + idx * 10, g))
-
-    dibujo = "".join(d)
-    if tiene("diente_impactado"):
-        # Fuera de posicion: inclinado y corrido hacia apical.
-        dibujo = (f'<g transform="translate(0 {_n(-g.hacia_oclusal * 3)}) '
-                  f'rotate({16 if superior else -16} {_n(g.cx)} {_n(g.crown_cy)})">{dibujo}</g>')
-
-    extra = _texto(g.crown_x + 1, g.numero_y, exodoncia, ROJO, 7.5) if exodoncia else ""
-    numero_txt = (f'<text x="{_n(g.cx)}" y="{_n(g.numero_y)}" text-anchor="middle" '
-                  f'font-family="Inter, sans-serif" font-size="9" fill="{NUMERO}">{numero}</text>')
-    return f"<g>{dibujo}{extra}{numero_txt}</g>"
-
-
-POSICION = {
-    **{n: (_x_para_indice(i), ARCO_SUPERIOR_Y, True) for i, n in enumerate(ARCO_SUPERIOR)},
-    **{n: (_x_para_indice(i), ARCO_INFERIOR_Y, False) for i, n in enumerate(ARCO_INFERIOR)},
-}
-
-
 def _capa_puente(dientes_puente, defecto: bool) -> str:
-    """Circulo de corona en cada diente del puente, unidos por una barra."""
+    """Circulo sobre la corona vestibular de cada diente del puente, unidos por una barra."""
     centros = []
     for dp in dientes_puente:
-        x, y0, sup = POSICION[dp.numero_diente]
-        g = _geometria(dp.numero_diente, x, y0, sup)
-        centros.append((g.cx, g.crown_cy))
+        x, y0, superior = POSICION[dp.numero_diente]
+        t = _Diente(dp.numero_diente)
+        capa = _SUP if superior else _INF
+        y_corona = y0 + _mapa_y(capa["vestibular"])((t.cervical + 100) / 2)
+        centros.append((x + t.ancho / 2, y_corona, _radio_puente(dp.numero_diente)))
     s = []
-    for (px, py), (cx, cy) in zip(centros, centros[1:]):
-        s.append(_linea(px + RADIO_PUENTE, py, cx - RADIO_PUENTE, cy, stroke=AZUL, stroke_width=2.5,
-                        stroke_linecap="round"))
-    s.extend(_circulo_corona(cx, cy, RADIO_PUENTE, defecto) for cx, cy in centros)
+    for (px, py, pr), (cx, cy, cr) in zip(centros, centros[1:]):
+        s.append(_linea(px + pr, py, cx - cr, cy, stroke=AZUL, stroke_width=2.5, stroke_linecap="round"))
+    s.extend(_circulo_puente(cx, cy, r, defecto) for cx, cy, r in centros)
     return "<g>" + "".join(s) + "</g>"
 
 
 def odontograma_svg(
-    hallazgos, lesiones, puentes, raices_por_diente: dict[int, list[str]], modo: str = MODO_COLOR
+    hallazgos, lesiones, puentes, raices_por_diente=None, modo: str = MODO_COLOR
 ) -> Markup:
     """
     hallazgos / lesiones: activos (no resueltos). puentes: lista de
-    (puente, dientes en orden anatomico). raices_por_diente: de diente_anatomia.
+    (puente, dientes en orden anatomico). raices_por_diente: se conserva por
+    compatibilidad de la firma; las raices (y sus nombres) salen del JSON.
 
     modo: "color" (pantalla/historia completa), "blanco" (dientes sin
     hallazgos; ignora lo recibido) o "gris" (hallazgos activos en gris). Ver
@@ -433,11 +658,10 @@ def odontograma_svg(
     en_puente = {dp.numero_diente: dp for _, dientes in puentes for dp in dientes}
 
     partes = []
-    for numeros, y0, superior in ((ARCO_SUPERIOR, ARCO_SUPERIOR_Y, True), (ARCO_INFERIOR, ARCO_INFERIOR_Y, False)):
-        for i, n in enumerate(numeros):
-            partes.append(_diente(n, _x_para_indice(i), y0, superior,
-                                  raices_por_diente.get(n) or nombres_raices_por_defecto(n),
-                                  por_diente[n], lesiones_por_diente[n], en_puente.get(n)))
+    for numero in ARCO_SUPERIOR + ARCO_INFERIOR:
+        x, y0, _ = POSICION[numero]
+        partes.append(_diente(numero, x, y0, por_diente[numero], lesiones_por_diente[numero],
+                              en_puente.get(numero)))
     for puente, dientes in puentes:
         partes.append(_capa_puente(dientes, puente.estado_general.value == "defecto"))
 
@@ -447,6 +671,6 @@ def odontograma_svg(
             cuerpo = cuerpo.replace(f'"{color}"', f'"{equivalente}"')
 
     return Markup(
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {VIEWBOX_WIDTH} {VIEWBOX_HEIGHT}" '
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {_n(VIEWBOX_WIDTH)} {_n(VIEWBOX_HEIGHT)}" '
         f'class="odontograma" role="img" aria-label="Odontograma">{cuerpo}</svg>'
     )

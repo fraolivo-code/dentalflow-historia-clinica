@@ -29,3 +29,5 @@ Thumbs.db
 *.swp
 *.swo
 *~
+# Postgres desechable para probar migraciones (scripts/probar_migraciones.py)
+.venv-pg/

@@ -66,6 +66,9 @@ class TipoHallazgo(str, enum.Enum):
     afraccion = "afraccion"
     # Agregado 23/09/2026 (migracion 0007). Grupo "condicion".
     diastema = "diastema"
+    # Agregado 05/10/2026 (migracion 0025). Grupo "condicion": marca que junto a este
+    # diente hay uno supernumerario (se dibuja "SN" en rojo junto al numero).
+    supernumerario = "supernumerario"
 
 
 # Grupos de exclusividad (seccion 1.2 / 3.3). Logica de aplicacion, no de la
@@ -80,7 +83,7 @@ GRUPO_ENDO = {
 }
 # "condicion" (23/09/2026): compatible con cualquier otro grupo, incluido
 # exclusive — no cierra nada y ningun hallazgo nuevo lo cierra.
-GRUPO_CONDICION = {TipoHallazgo.diastema}
+GRUPO_CONDICION = {TipoHallazgo.diastema, TipoHallazgo.supernumerario}
 # Todo lo que no esta en GRUPO_EXCLUSIVE, GRUPO_ENDO ni GRUPO_CONDICION
 # pertenece a "independent".
 
@@ -131,6 +134,10 @@ class SuperficieDental(str, enum.Enum):
     oclusal = "oclusal"
     vestibular = "vestibular"
     cervical = "cervical"
+    # Agregado 05/10/2026 (migracion 0023). Un solo valor: se muestra como
+    # "palatina" en los dientes superiores (11-28) y "lingual" en los
+    # inferiores (31-48), igual que el periodontograma.
+    palatino_lingual = "palatino_lingual"
 
 
 # Tipos de hallazgo que exigen superficie, y cuales admiten (23/09/2026).

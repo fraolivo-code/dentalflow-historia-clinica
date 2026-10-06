@@ -11,7 +11,7 @@
 .odo-figura svg { width: 100%; height: auto; }
 
 .odo-lineas { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.odo-lineas td { height: 17pt; padding: 0; vertical-align: bottom; border-bottom: 0.5pt solid #000; font-size: 8pt; line-height: 1.1; }
+.odo-lineas td { height: 15.5pt; padding: 0; vertical-align: bottom; border-bottom: 0.5pt solid #000; font-size: 8pt; line-height: 1.1; }
 .odo-lineas tr { page-break-inside: avoid; }
 .odo-lineas .num { width: 6%; font-weight: 600; font-size: 9.5pt; color: #000; }
 .odo-lineas .texto { width: 42%; color: #7a7a7a; }
@@ -19,5 +19,5 @@
 
 .odo-plan { margin-top: 8pt; page-break-inside: avoid; }
 .odo-plan h3 { font-size: 10.5pt; font-weight: 600; color: #000; margin: 0 0 1pt; }
-.odo-plan .renglon-plan { height: 17pt; border-bottom: 0.5pt solid #000; font-size: 8.5pt; color: #7a7a7a; line-height: 17pt; white-space: nowrap; overflow: hidden; }
+.odo-plan .renglon-plan { height: 15.5pt; border-bottom: 0.5pt solid #000; font-size: 8.5pt; color: #7a7a7a; line-height: 15.5pt; white-space: nowrap; overflow: hidden; }
 .odo-nota { font-size: 8pt; color: #7a7a7a; margin: 0 0 2pt; }

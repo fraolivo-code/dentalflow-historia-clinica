@@ -71,7 +71,7 @@ async def _odontograma(session: AsyncSession, paciente_id: UUID) -> dict:
     # Ya resueltos: el dibujo solo muestra el estado actual; esto conserva el pasado.
     resueltos = [
         {"fecha": h.fecha, "resuelto": h.resuelto_fecha, "dientes": str(h.numero_diente),
-         "descripcion": etiquetas.etiqueta_hallazgo(h.tipo_hallazgo, h.superficie)}
+         "descripcion": etiquetas.etiqueta_hallazgo(h.tipo_hallazgo, h.superficie, h.numero_diente)}
         for h in hallazgos if h.resuelto
     ] + [
         {"fecha": l.fecha, "resuelto": l.resuelto_fecha, "dientes": str(l.numero_diente),
@@ -271,7 +271,7 @@ async def pdf_historia_completa(
                 {
                     "e": e,
                     "hallazgo": etiquetas.HALLAZGO.get(e.tipo_hallazgo),
-                    "superficie": etiquetas.SUPERFICIE.get(e.superficie),
+                    "superficie": etiquetas.etiqueta_superficie(e.superficie, e.dientes) if e.superficie else None,
                     "tratamiento": _nombre_tratamiento(por_id[e.tratamiento_id]) if e.tratamiento_id else None,
                     "responsable": responsables.get(e.responsable),
                 }

@@ -81,7 +81,7 @@ def leyenda_por_diente(activos, lesiones_activas, puentes_activos) -> dict[int, 
                 f"{etiquetas.ROL_PUENTE[dp.rol]}, {etiquetas.HALLAZGO[dp.condicion_individual].lower()}"
             )
     for h in activos:
-        leyenda[h.numero_diente].append(etiquetas.etiqueta_hallazgo(h.tipo_hallazgo, h.superficie))
+        leyenda[h.numero_diente].append(etiquetas.etiqueta_hallazgo(h.tipo_hallazgo, h.superficie, h.numero_diente))
     for l in lesiones_activas:
         leyenda[l.numero_diente].append(etiquetas.etiqueta_lesion(l.tipo, l.raiz))
     return leyenda
