@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 from app.enums import FurcacionGlickman, RecesionCairo, SitioPeriodontal
 from app.models.common import AuditMixin, UUIDPk
+from app.services.periodontograma import NIVEL_INSERCION_SQL
 
 
 class PeriodontogramaRegistro(Base, UUIDPk, AuditMixin):
@@ -36,11 +37,11 @@ class PeriodontogramaRegistro(Base, UUIDPk, AuditMixin):
     sitio: Mapped[SitioPeriodontal] = mapped_column(
         Enum(SitioPeriodontal, name="sitio_periodontal", native_enum=True), nullable=False
     )
-    # Con signo: positivo = recesion, negativo = inflamacion/cobertura.
+    # Con signo: NEGATIVO = recesion (convencion de la Dra., Berna).
     margen_gingival: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     # Siempre positivo; puede superar 12 mm (tope 30 solo contra typos).
     profundidad_sondaje: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    # Calculado por el backend: margen_gingival + profundidad_sondaje.
+    # Calculado por el backend: profundidad_sondaje - margen_gingival.
     nivel_insercion: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     recesion_mm: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     recesion_cairo: Mapped[RecesionCairo | None] = mapped_column(
@@ -62,7 +63,7 @@ class PeriodontogramaRegistro(Base, UUIDPk, AuditMixin):
         ),
         CheckConstraint("recesion_mm BETWEEN 0 AND 12", name="ck_perio_recesion_mm_rango"),
         CheckConstraint(
-            "nivel_insercion = margen_gingival + profundidad_sondaje",
+            NIVEL_INSERCION_SQL,
             name="ck_perio_nivel_insercion_calculado",
         ),
         UniqueConstraint(

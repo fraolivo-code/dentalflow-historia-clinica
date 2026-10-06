@@ -21,6 +21,7 @@ from app.schemas.periodontograma import (
     PeriodontogramaVisitaRead,
     validar_furcacion,
 )
+from app.services.periodontograma import calcular_nivel_insercion
 
 router = APIRouter(tags=["periodontograma"], dependencies=[Depends(requerir_dra)])
 
@@ -61,7 +62,7 @@ async def cargar_periodontograma(
     obligatorio en ambas tablas (no nullable, a diferencia de
     odontograma_hallazgo) porque siempre ocurre dentro de una visita formal.
     Una sola carga por visita (409 si ya existe; las correcciones van por
-    PATCH). nivel_insercion lo calcula el backend (24/09/2026).
+    PATCH). nivel_insercion lo calcula el backend (24/09/2026; NI = PS - MG desde 05/10/2026).
     """
     visita = await _obtener_visita_o_404(visita_id, session)
     ya_cargado = await session.execute(
@@ -76,7 +77,7 @@ async def cargar_periodontograma(
         PeriodontogramaRegistro(
             paciente_id=visita.paciente_id,
             visita_id=visita_id,
-            nivel_insercion=r.margen_gingival + r.profundidad_sondaje,
+            nivel_insercion=calcular_nivel_insercion(r.margen_gingival, r.profundidad_sondaje),
             creado_por=usuario.id,
             **r.model_dump(),
         )
@@ -173,7 +174,7 @@ async def corregir_registro(
         raise HTTPException(404, "Registro periodontal no encontrado")
     for campo in datos.model_fields_set:
         setattr(registro, campo, getattr(datos, campo))
-    registro.nivel_insercion = registro.margen_gingival + registro.profundidad_sondaje
+    registro.nivel_insercion = calcular_nivel_insercion(registro.margen_gingival, registro.profundidad_sondaje)
     registro.actualizado_en = ahora()
     registro.actualizado_por = usuario.id
     await session.commit()
