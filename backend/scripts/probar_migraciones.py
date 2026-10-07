@@ -146,8 +146,13 @@ def main() -> int:
                                         "where table_name='paciente' and column_name='ultima_visita_odontologo'")).scalar()
                 if hay != 1:
                     errores.append("0026 no creo paciente.ultima_visita_odontologo")
-            command.downgrade(cfg, "0025")
-            print("OK 0026 sube y baja")
+            command.upgrade(cfg, "0027")
+            with eng.connect() as c:
+                tip = {r[0] for r in c.execute(sa.text("select unnest(enum_range(null::tipo_hallazgo))::text"))}
+                if "requiere_periodontal" not in tip:
+                    errores.append("0027 no agrego requiere_periodontal")
+            command.downgrade(cfg, "0025")  # 0027 no-op, 0026 quita la columna
+            print("OK 0026 y 0027 suben; downgrade a 0025")
 
             # Downgrade con una fila palatino_lingual: 0023 debe negarse.
             command.downgrade(cfg, "0024")  # 0025 no-op

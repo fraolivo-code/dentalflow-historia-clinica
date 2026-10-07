@@ -100,7 +100,7 @@ def _semilla_catalogo():
 
 
 def test_json_version_y_cantidades():
-    assert JSON["version"] == "2026-10-05.1"
+    assert JSON["version"] == "2026-10-06.1"
     assert len(JSON["dientes"]) == 32
     raices = sum(len(_forma(int(n))["raices"]) for n in JSON["dientes"])
     assert raices == 52
@@ -502,6 +502,18 @@ def test_supernumerario_SN_rojo_junto_al_numero_y_sin_dibujar_diente_extra():
     assert len(textos) == 1
     assert len([g for g in svg.iter() if g.get("data-diente")]) == len([g for g in base.iter() if g.get("data-diente")]) == 32
     assert not [t for t in _diente(base, 13) if _tag(t) == "text" and t.text == "SN"]
+
+
+def test_requiere_periodontal_PER_naranja_junto_al_numero_y_detras_de_SN():
+    from app.services.odontograma_svg import NARANJA
+
+    solo = [t for t in _diente(_dibujo([_h(45, "requiere_periodontal")]), 45)
+            if _tag(t) == "text" and t.text == "PER" and t.get("fill") == NARANJA]
+    assert len(solo) == 1
+    assert not [t for t in _diente(_dibujo([]), 45) if _tag(t) == "text" and t.text == "PER"]
+    ambos = _diente(_dibujo([_h(13, "supernumerario"), _h(13, "requiere_periodontal")]), 13)
+    x = {t.text: float(t.get("x")) for t in ambos if _tag(t) == "text" and t.text in ("SN", "PER")}
+    assert x["PER"] > x["SN"]
 
 
 def test_spp_texto_azul_junto_a_la_corona_vestibular():

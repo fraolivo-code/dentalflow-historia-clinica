@@ -46,6 +46,7 @@ ARCO_INFERIOR = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
 # Paleta: solo los hex del JSON.
 AZUL = _JSON["colores"]["azul"]
 ROJO = _JSON["colores"]["rojo"]
+NARANJA = _JSON["colores"]["naranja"]
 TRAZO = _JSON["colores"]["trazo"]
 RAIZ = _JSON["colores"]["raiz"]
 CORONA = _JSON["colores"]["corona"]
@@ -66,6 +67,7 @@ _GRIS_ROJO = "#a6a6a6"  # lo que en pantalla es rojo (caries, defectos, indicado
 _A_BLANCO_Y_NEGRO = {
     AZUL: _GRIS_AZUL,
     ROJO: _GRIS_ROJO,
+    NARANJA: _GRIS_ROJO,  # PER: igual que lo que es rojo
     TRAZO: "#000000",  # contornos de los dientes y numeros
     RAIZ: "#f2f2f2",
     CERVICAL: "#808080",
@@ -599,6 +601,10 @@ def _diente(numero: int, x: float, y0: float, hallazgos, lesiones, en_puente) ->
         extra.append(_texto(cx - 9, numero_y, e.exodoncia, ROJO, 7.5, "end"))
     if e.tiene("supernumerario"):
         extra.append(_texto(cx + 9, numero_y, "SN", ROJO, 7.5))
+    if e.tiene("requiere_periodontal"):
+        # Detras de "SN" si el diente tambien lo lleva.
+        dx = 22 if e.tiene("supernumerario") else 9
+        extra.append(_texto(cx + dx, numero_y, "PER", NARANJA, 7.5))
     extra.append(f'<text x="{_n(cx)}" y="{_n(numero_y)}" text-anchor="middle" font-family="Inter, sans-serif" '
                  f'font-size="9" fill="{TRAZO}">{numero}</text>')
     return _g(t.definiciones() + cuerpo + "".join(extra), transform=f"translate({_n(x)} {_n(y0)})",

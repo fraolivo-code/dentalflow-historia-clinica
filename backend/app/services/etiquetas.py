@@ -97,6 +97,7 @@ HALLAZGO = {
     TipoHallazgo.movimiento_rotacion: "Rotación",
     TipoHallazgo.diastema: "Diastema",
     TipoHallazgo.supernumerario: "Diente supernumerario (SN)",
+    TipoHallazgo.requiere_periodontal: "Requiere tratamiento periodontal (PER)",
     TipoHallazgo.resto_radicular: "Resto radicular (RR)",
     TipoHallazgo.exodoncia_simple: "Exodoncia simple (S)",
     TipoHallazgo.exodoncia_quirurgica: "Exodoncia quirúrgica (Q)",

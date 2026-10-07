@@ -69,6 +69,9 @@ class TipoHallazgo(str, enum.Enum):
     # Agregado 05/10/2026 (migracion 0025). Grupo "condicion": marca que junto a este
     # diente hay uno supernumerario (se dibuja "SN" en rojo junto al numero).
     supernumerario = "supernumerario"
+    # Agregado 06/10/2026 (migracion 0027). Grupo "condicion": el diente requiere
+    # tratamiento periodontal (se dibuja "PER" en naranja junto al numero).
+    requiere_periodontal = "requiere_periodontal"
 
 
 # Grupos de exclusividad (seccion 1.2 / 3.3). Logica de aplicacion, no de la
@@ -83,7 +86,11 @@ GRUPO_ENDO = {
 }
 # "condicion" (23/09/2026): compatible con cualquier otro grupo, incluido
 # exclusive — no cierra nada y ningun hallazgo nuevo lo cierra.
-GRUPO_CONDICION = {TipoHallazgo.diastema, TipoHallazgo.supernumerario}
+GRUPO_CONDICION = {
+    TipoHallazgo.diastema,
+    TipoHallazgo.supernumerario,
+    TipoHallazgo.requiere_periodontal,
+}
 # Todo lo que no esta en GRUPO_EXCLUSIVE, GRUPO_ENDO ni GRUPO_CONDICION
 # pertenece a "independent".
 

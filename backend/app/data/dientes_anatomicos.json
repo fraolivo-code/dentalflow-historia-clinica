@@ -1,9 +1,10 @@
 {
- "version": "2026-10-05.1",
+ "version": "2026-10-06.1",
  "descripcion": "Dientes anatómicos aprobados por la Dra. (muestra 3). Fuente única para la pantalla y los PDF. Coordenadas locales: raíz arriba (y=0), corona abajo (y=100), mesial a la DERECHA; 'espejo' refleja horizontalmente (cuadrantes 2 y 3).",
  "colores": {
   "azul": "#1565c0",
   "rojo": "#c62828",
+  "naranja": "#d96a00",
   "trazo": "#2b2b2b",
   "raiz": "#f3efe8",
   "corona": "#ffffff",
