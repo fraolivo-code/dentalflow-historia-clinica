@@ -38,6 +38,7 @@ ETIQUETAS = {
     "documento_historia_anterior": "Documento de historia anterior",
     "foto": "Foto",
     "seguro": "Seguro",
+    "ultima_visita_odontologo": "Última visita al odontólogo",
     "periodontograma_eliminado": "Periodontograma eliminado",
 }
 

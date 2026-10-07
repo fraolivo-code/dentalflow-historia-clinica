@@ -139,6 +139,16 @@ def main() -> int:
                                          "superficie": "palatino_lingual"})
             print("OK hallazgos con supernumerario y palatino_lingual")
 
+            # 0026: columna nueva, sube y baja sin tocar filas.
+            command.upgrade(cfg, "0026")
+            with eng.connect() as c:
+                hay = c.execute(sa.text("select count(*) from information_schema.columns "
+                                        "where table_name='paciente' and column_name='ultima_visita_odontologo'")).scalar()
+                if hay != 1:
+                    errores.append("0026 no creo paciente.ultima_visita_odontologo")
+            command.downgrade(cfg, "0025")
+            print("OK 0026 sube y baja")
+
             # Downgrade con una fila palatino_lingual: 0023 debe negarse.
             command.downgrade(cfg, "0024")  # 0025 no-op
             try:

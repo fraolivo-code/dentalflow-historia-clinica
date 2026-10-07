@@ -57,6 +57,8 @@ class Paciente(Base, UUIDPk, AuditMixin):
     foto: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Texto libre y opcional (04/10/2026); sin lista de aseguradoras.
     seguro: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Texto libre y opcional (06/10/2026), solo en el ingreso: "hace 2 anos", etc.
+    ultima_visita_odontologo: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     @property
     def paciente_desde(self) -> int:

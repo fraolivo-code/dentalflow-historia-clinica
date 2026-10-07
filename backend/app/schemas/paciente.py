@@ -15,6 +15,15 @@ def _limpiar_seguro(v: str | None) -> str | None:
     return v or None
 
 
+def _limpiar_ultima_visita(v: str | None) -> str | None:
+    if v is None:
+        return None
+    v = v.strip()
+    if len(v) > 120:
+        raise ValueError("La última visita al odontólogo no puede superar 120 caracteres")
+    return v or None
+
+
 class PacienteCreate(BaseModel):
     # creado_por no se acepta del cliente: se deriva del usuario autenticado (JWT).
     # numero_historia es opcional (04/10/2026): vacio -> lo asigna el sistema
@@ -44,6 +53,12 @@ class PacienteCreate(BaseModel):
     documento_historia_anterior: str | None = None
     foto: str | None = None
     seguro: str | None = None
+    ultima_visita_odontologo: str | None = None
+
+    @field_validator("ultima_visita_odontologo")
+    @classmethod
+    def _ultima_visita_limpia(cls, v: str | None) -> str | None:
+        return _limpiar_ultima_visita(v)
 
     @field_validator("numero_historia")
     @classmethod
@@ -96,11 +111,17 @@ class PacienteUpdate(BaseModel):
     documento_historia_anterior: str | None = None
     foto: str | None = None
     seguro: str | None = None
+    ultima_visita_odontologo: str | None = None
 
     @field_validator("seguro")
     @classmethod
     def _seguro_limpio(cls, v: str | None) -> str | None:
         return _limpiar_seguro(v)
+
+    @field_validator("ultima_visita_odontologo")
+    @classmethod
+    def _ultima_visita_limpia(cls, v: str | None) -> str | None:
+        return _limpiar_ultima_visita(v)
 
     @field_validator("nombre_completo", "movil", "referido_por", "cedula")
     @classmethod
@@ -149,6 +170,7 @@ class PacienteRead(AuditRead):
     documento_historia_anterior: str | None
     foto: str | None
     seguro: str | None
+    ultima_visita_odontologo: str | None
     paciente_desde: int
 
 
