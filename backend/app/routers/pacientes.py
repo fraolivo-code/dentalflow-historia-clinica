@@ -144,9 +144,11 @@ async def corregir_numero_historia(
     except correlativos.NumeroInvalido as error:
         raise HTTPException(422, str(error))
     actual = paciente.numero_historia
-    if nuevo == actual or (actual.isdecimal() and int(nuevo) == int(actual)):
+    if nuevo == actual:
         raise HTTPException(422, "El número nuevo es igual al actual.")
-    if int(nuevo) in await correlativos.numeros_en_uso(session):
+    # Mismo valor con otro ancho (0433 -> 000433) es solo reformatear: no choca consigo mismo.
+    reformateo = actual.isdecimal() and int(nuevo) == int(actual)
+    if not reformateo and int(nuevo) in await correlativos.numeros_en_uso(session):
         raise HTTPException(409, f"Ya existe una historia con el número {nuevo}.")
     paciente.numero_historia = nuevo
     paciente.actualizado_en = ahora()

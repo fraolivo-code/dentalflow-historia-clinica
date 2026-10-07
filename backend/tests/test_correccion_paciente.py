@@ -213,6 +213,15 @@ async def test_corregir_numero_igual_al_actual_es_422(client, h_dra):
     assert await _cambios(client, h_dra, p["id"]) == []
 
 
+async def test_corregir_numero_reformatea_al_cambiar_el_ancho(client, h_dra):
+    p = await _alta(client, h_dra)
+    await client.put(
+        "/configuracion/numeracion", headers=h_dra, json={"siguiente_numero": 50, "numero_ancho": 6}
+    )
+    r = await _corregir(client, h_dra, p["id"], "1")
+    assert (r.status_code, r.json()["numero_historia"]) == (200, "000001")
+
+
 async def test_corregir_numero_en_uso_es_409(client, h_dra):
     a = await _alta(client, h_dra)
     b = await _alta(client, h_dra)
