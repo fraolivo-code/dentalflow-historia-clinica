@@ -20,9 +20,11 @@
   .odo-datos .linea { border-bottom: 0.75pt solid #000; }
   {% include "_odontograma_hoja.css" %}
 
-  .perio { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 5pt; page-break-inside: avoid; }
+  /* Ancho fijo en mm (16 + 48 x 5.1 = 260.8): cabe en A4 y tambien en carta horizontal
+     (279 mm) impresa a tamano real, que recorta ~18 mm a la derecha del A4. */
+  .perio { width: 260.8mm; border-collapse: collapse; table-layout: fixed; margin: 0 0 5pt; page-break-inside: avoid; }
   .perio td, .perio th { border: 0.4pt solid #8a8a8a; height: 13pt; padding: 0; text-align: center; font-weight: 400; font-size: 6.5pt; }
-  .perio .etq { width: 17mm; text-align: left; padding-left: 2pt; font-size: 6.5pt; color: #333; border-left-width: 0.4pt; }
+  .perio .etq { width: 16mm; text-align: left; padding-left: 2pt; font-size: 6.5pt; color: #333; border-left-width: 0.4pt; }
   .perio .cara { background: #ececec; font-weight: 600; font-size: 6.5pt; text-align: left; padding-left: 2pt; }
   .perio .diente { font-weight: 700; font-size: 8.5pt; background: #f6f6f6; }
   .perio .ini { border-left: 0.9pt solid #000; }
@@ -37,8 +39,8 @@
     {%- for arco in arcos %}
     <table class="perio">
       <colgroup>
-        <col style="width: 17mm">
-        {%- for _ in arco.dientes %}<col><col><col>{% endfor %}
+        <col style="width: 16mm">
+        {%- for _ in arco.dientes %}<col style="width: 5.1mm"><col style="width: 5.1mm"><col style="width: 5.1mm">{% endfor %}
       </colgroup>
       <tr><td class="arco" colspan="{{ arco.dientes | length * 3 + 1 }}">{{ arco.nombre }}</td></tr>
       <tr>
@@ -48,11 +50,11 @@
         {%- endfor %}
       </tr>
       <tr>
-        <td class="etq">Movilidad (0-3)</td>
+        <td class="etq">Movilidad</td>
         {%- for n in arco.dientes %}<td class="ini{% if loop.index == 9 %} centro{% endif %}" colspan="3"></td>{% endfor %}
       </tr>
       <tr>
-        <td class="etq">Furcación (I-III)</td>
+        <td class="etq">Furcación</td>
         {%- for n in arco.dientes %}<td class="ini{% if loop.index == 9 %} centro{% endif %}{% if not (n % 10 >= 6 or n in (14, 24)) %} noaplica{% endif %}" colspan="3"></td>{% endfor %}
       </tr>
       {%- for cara in arco.caras %}
