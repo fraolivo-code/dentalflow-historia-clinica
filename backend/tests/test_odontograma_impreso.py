@@ -6,6 +6,9 @@
 # WeasyPrint no se usa aqui: generar_pdf se sustituye por el render de la
 # plantilla Jinja, y se verifica el HTML/SVG resultante.
 
+from datetime import date as _date, timedelta as _timedelta
+
+NAC_MENOR = (_date.today() - _timedelta(days=365 * 5)).isoformat()  # 5 anios: sin cedula obligatoria
 import re
 import uuid
 from datetime import date
@@ -100,7 +103,7 @@ async def _paciente(client, h, nombre="Paciente Gris"):
     r = await client.post(
         "/pacientes",
         headers=h,
-        json={"movil": "04141234567", "nombre_completo": nombre, "fecha_registro": "2026-10-05",
+        json={"movil": "04141234567", "nombre_completo": nombre, "fecha_registro": "2026-10-05", "fecha_nacimiento": NAC_MENOR,
               "fecha_primera_consulta_real": "2012-04-01"},
     )
     assert r.status_code == 201, r.text

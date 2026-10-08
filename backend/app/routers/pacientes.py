@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -26,12 +27,53 @@ router = APIRouter(
 )
 
 
+# Desde esta edad la cedula es obligatoria; antes, opcional (el sistema la pide al cumplirla).
+EDAD_CEDULA_OBLIGATORIA = 12
+# Datos de identidad que la asistente puede completar (no cambiar) si estan vacios.
+CAMPOS_COMPLETABLES = frozenset({"cedula", "fecha_nacimiento"})
+
+
+def _edad(nacimiento: date, hoy: date) -> int:
+    return hoy.year - nacimiento.year - ((hoy.month, hoy.day) < (nacimiento.month, nacimiento.day))
+
+
+def _validar_identificacion(cedula: str | None, nacimiento: date | None) -> None:
+    if nacimiento is None:
+        raise HTTPException(422, "La fecha de nacimiento es obligatoria.")
+    hoy = date.today()
+    if nacimiento > hoy:
+        raise HTTPException(422, "La fecha de nacimiento no puede ser futura.")
+    if cedula is None and _edad(nacimiento, hoy) >= EDAD_CEDULA_OBLIGATORIA:
+        raise HTTPException(422, f"La cédula es obligatoria desde los {EDAD_CEDULA_OBLIGATORIA} años.")
+
+
+async def _verificar_cedula_libre(
+    session: AsyncSession, cedula: str | None, excluir_id: UUID | None = None
+) -> None:
+    if cedula is None:
+        return
+    consulta = select(Paciente.numero_historia, Paciente.nombre_completo).where(
+        Paciente.cedula == cedula
+    )
+    if excluir_id is not None:
+        consulta = consulta.where(Paciente.id != excluir_id)
+    existente = (await session.execute(consulta)).first()
+    if existente is not None:
+        raise HTTPException(
+            409,
+            f"Ya existe un paciente con la cédula {cedula}: historia "
+            f"{existente.numero_historia}, {existente.nombre_completo}. Ábralo desde Pacientes.",
+        )
+
+
 @router.post("", response_model=PacienteRead, status_code=201)
 async def crear_paciente(
     datos: PacienteCreate,
     session: AsyncSession = Depends(get_session),
     usuario: Usuario = Depends(get_current_usuario),
 ):
+    _validar_identificacion(datos.cedula, datos.fecha_nacimiento)
+    await _verificar_cedula_libre(session, datos.cedula)
     ancho = await correlativos.ancho_configurado(session)
     if datos.numero_historia is None:
         try:
@@ -57,8 +99,9 @@ async def crear_paciente(
     try:
         await session.commit()
     except IntegrityError:
-        # Carrera con otra alta que tomo el mismo numero entre la revision y el commit.
+        # Carrera con otra alta que tomo el mismo numero o la misma cedula.
         await session.rollback()
+        await _verificar_cedula_libre(session, datos.cedula)
         raise HTTPException(409, f"Ya existe una historia con el número {numero_historia}.")
     await session.refresh(paciente)
     return paciente
@@ -108,9 +151,24 @@ async def actualizar_paciente(
     numero_historia no pasa por aqui: tiene su propio endpoint.
     """
     cambios = datos.model_dump(exclude_unset=True)
-    if usuario.rol not in ROLES_ACCESO_TOTAL and not paciente_cambios.solo_contacto(cambios):
+    total = usuario.rol in ROLES_ACCESO_TOTAL
+    if not total and not all(
+        c in paciente_cambios.CAMPOS_CONTACTO | CAMPOS_COMPLETABLES for c in cambios
+    ):
         raise HTTPException(403, "Solo puede corregir los datos de contacto del paciente.")
     paciente = await obtener_paciente_o_404(paciente_id, session)
+    if not total and any(
+        getattr(paciente, c) is not None for c in CAMPOS_COMPLETABLES if c in cambios
+    ):
+        raise HTTPException(403, "Solo la Dra. puede cambiar una cédula o fecha de nacimiento ya registrada.")
+    if CAMPOS_COMPLETABLES & cambios.keys():
+        cedula = cambios["cedula"] if "cedula" in cambios else paciente.cedula
+        nacimiento = (
+            cambios["fecha_nacimiento"] if "fecha_nacimiento" in cambios else paciente.fecha_nacimiento
+        )
+        _validar_identificacion(cedula, nacimiento)
+        if "cedula" in cambios:
+            await _verificar_cedula_libre(session, cedula, excluir_id=paciente.id)
     realizados = []
     for campo, valor in cambios.items():
         anterior = getattr(paciente, campo)

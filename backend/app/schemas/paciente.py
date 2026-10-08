@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from uuid import UUID
 
@@ -22,6 +23,19 @@ def _limpiar_ultima_visita(v: str | None) -> str | None:
     if len(v) > 120:
         raise ValueError("La última visita al odontólogo no puede superar 120 caracteres")
     return v or None
+
+
+def _normalizar_cedula(v: str | None) -> str | None:
+    """'v-012345' -> 'V-12345'; vacio -> None. Solo V o E y hasta 10 digitos."""
+    if v is None:
+        return None
+    v = v.strip().upper()
+    if not v:
+        return None
+    m = re.fullmatch(r"([VE])-?(\d{1,10})", v)
+    if m is None or int(m[2]) == 0:
+        raise ValueError("La cédula debe ser V o E seguida de solo números (ej. V-12345678)")
+    return f"{m[1]}-{int(m[2])}"
 
 
 class PacienteCreate(BaseModel):
@@ -59,6 +73,11 @@ class PacienteCreate(BaseModel):
     @classmethod
     def _ultima_visita_limpia(cls, v: str | None) -> str | None:
         return _limpiar_ultima_visita(v)
+
+    @field_validator("cedula")
+    @classmethod
+    def _cedula_normalizada(cls, v: str | None) -> str | None:
+        return _normalizar_cedula(v)
 
     @field_validator("numero_historia")
     @classmethod
@@ -123,11 +142,15 @@ class PacienteUpdate(BaseModel):
     def _ultima_visita_limpia(cls, v: str | None) -> str | None:
         return _limpiar_ultima_visita(v)
 
-    @field_validator("nombre_completo", "movil", "referido_por", "cedula")
+    @field_validator("cedula")
+    @classmethod
+    def _cedula_normalizada(cls, v: str | None) -> str | None:
+        return _normalizar_cedula(v)
+
+    @field_validator("nombre_completo", "movil", "referido_por")
     @classmethod
     def _sin_espacios_sobrantes(cls, v: str | None) -> str | None:
-        # Una cedula en blanco equivale a borrarla; un obligatorio en blanco
-        # queda como "" y lo rechaza _validar.
+        # Un obligatorio en blanco queda como None y lo rechaza _validar.
         if v is None:
             return None
         v = v.strip()

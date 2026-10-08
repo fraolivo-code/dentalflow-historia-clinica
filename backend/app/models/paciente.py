@@ -6,7 +6,7 @@
 
 from datetime import date
 
-from sqlalchemy import Boolean, Date, String, Text
+from sqlalchemy import Boolean, Date, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.db import Base
@@ -16,6 +16,15 @@ from app.services.movil import normalizar_movil
 
 class Paciente(Base, UUIDPk, AuditMixin):
     __tablename__ = "paciente"
+    __table_args__ = (
+        Index(
+            "uq_paciente_cedula",
+            "cedula",
+            unique=True,
+            postgresql_where=text("cedula IS NOT NULL"),
+            sqlite_where=text("cedula IS NOT NULL"),
+        ),
+    )
 
     # Correlativo generado por el sistema, no basado en cedula (Etapa 3, seccion 1)
     # — evita el caso de menores u otros pacientes sin documento.
@@ -29,7 +38,7 @@ class Paciente(Base, UUIDPk, AuditMixin):
     movil_normalizado: Mapped[str | None] = mapped_column(String(15), nullable=True, index=True)
     nombre_completo: Mapped[str] = mapped_column(String(300), nullable=False)
     # Opcional (25/09/2026): se imprime en la constancia de asistencia si existe.
-    # Sin UNIQUE — la identificacion del sistema sigue siendo numero_historia.
+    # Unica entre las que tienen valor (indice parcial uq_paciente_cedula, migracion 0028).
     cedula: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     direccion: Mapped[str | None] = mapped_column(Text, nullable=True)

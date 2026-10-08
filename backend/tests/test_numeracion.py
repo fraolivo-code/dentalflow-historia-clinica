@@ -2,6 +2,9 @@
 # Especificacion: especificacion-tecnica-numeracion-ficha.md. Sin red ni Postgres:
 # la secuencia se simula por motor (ver services/correlativos.py).
 
+from datetime import date as _date, timedelta as _timedelta
+
+NAC_MENOR = (_date.today() - _timedelta(days=365 * 5)).isoformat()  # 5 anios: sin cedula obligatoria
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
@@ -40,7 +43,7 @@ def _cuerpo(**extra):
     return {
         "movil": "04141234567",
         "nombre_completo": "Paciente Prueba",
-        "fecha_registro": "2026-10-05",
+        "fecha_registro": "2026-10-05", "fecha_nacimiento": NAC_MENOR,
         **extra,
     }
 

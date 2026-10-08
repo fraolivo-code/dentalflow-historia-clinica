@@ -1,6 +1,9 @@
 # Correccion de datos del paciente (04/10/2026), Parte A.
 # Especificacion: especificacion-tecnica-correccion-datos-paciente.md.
 
+from datetime import date as _date, timedelta as _timedelta
+
+NAC_MENOR = (_date.today() - _timedelta(days=365 * 5)).isoformat()  # 5 anios: sin cedula obligatoria
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
@@ -38,7 +41,7 @@ async def _alta(client, h, **extra):
     cuerpo = {
         "movil": "04141234567",
         "nombre_completo": "Paciente Prueba",
-        "fecha_registro": "2026-10-05",
+        "fecha_registro": "2026-10-05", "fecha_nacimiento": NAC_MENOR,
         **extra,
     }
     r = await client.post("/pacientes", headers=h, json=cuerpo)
@@ -107,7 +110,7 @@ async def test_asistente_con_un_campo_personal_es_403_y_no_cambia_nada(client, h
     ],
 )
 async def test_asistente_no_corrige_ningun_campo_personal(client, h_asistente, h_dra, campo, valor):
-    p = await _alta(client, h_dra)
+    p = await _alta(client, h_dra, cedula="V-999", fecha_nacimiento="1980-01-01")
     r = await client.patch(f"/pacientes/{p['id']}", headers=h_asistente, json={campo: valor})
     assert r.status_code == 403
 
@@ -292,3 +295,81 @@ async def test_el_historial_no_se_purga_con_la_purga_de_auditoria(client, h_dra,
     async with session_factory() as s:
         await auditoria.purgar_antiguos(s, ahora=datetime.now(timezone.utc) + timedelta(days=5000))
         assert (await s.execute(select(PacienteCambio))).scalars().all()
+
+
+# ------------------------------------------------- cedula y fecha de nacimiento
+
+NAC_ADULTO = "1990-05-17"
+
+
+async def _post(client, h, **extra):
+    cuerpo = {"movil": "04141234567", "nombre_completo": "Paciente Prueba", "fecha_registro": "2026-10-05", **extra}
+    return await client.post("/pacientes", headers=h, json=cuerpo)
+
+
+async def test_alta_exige_fecha_de_nacimiento(client, h_asistente):
+    r = await _post(client, h_asistente)
+    assert (r.status_code, r.json()["detail"]) == (422, "La fecha de nacimiento es obligatoria.")
+
+
+async def test_alta_adulto_exige_cedula_y_menor_no(client, h_asistente):
+    r = await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO)
+    assert r.status_code == 422 and "cédula es obligatoria" in r.json()["detail"]
+    assert (await _post(client, h_asistente, fecha_nacimiento=NAC_MENOR)).status_code == 201
+    assert (await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula="V-12345678")).status_code == 201
+
+
+async def test_cedula_se_pide_exactamente_a_los_12_anios(client, h_asistente):
+    from datetime import date
+
+    hoy = date.today()
+    doce = hoy.replace(year=hoy.year - 12) if (hoy.month, hoy.day) != (2, 29) else hoy.replace(year=hoy.year - 12, day=28)
+    casi = doce.replace(year=doce.year + 1) if (doce.month, doce.day) != (2, 29) else doce.replace(year=doce.year + 1, day=28)
+    assert (await _post(client, h_asistente, fecha_nacimiento=casi.isoformat())).status_code == 201  # 11
+    assert (await _post(client, h_asistente, fecha_nacimiento=doce.isoformat())).status_code == 422  # 12
+
+
+async def test_fecha_futura_es_422(client, h_asistente):
+    r = await _post(client, h_asistente, fecha_nacimiento="2999-01-01")
+    assert r.status_code == 422 and "futura" in r.json()["detail"]
+
+
+async def test_cedula_duplicada_es_409_y_dice_cual_ficha(client, h_asistente):
+    primero = (await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula="V-12345678")).json()
+    # misma cedula escrita distinto: se normaliza y choca
+    r = await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula="v-0012345678", nombre_completo="Otro")
+    assert r.status_code == 409
+    assert primero["numero_historia"] in r.json()["detail"] and "Paciente Prueba" in r.json()["detail"]
+    # V y E son distintas
+    assert (await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula="E-12345678")).status_code == 201
+
+
+async def test_cedula_con_formato_invalido_es_422(client, h_asistente):
+    for malo in ("12345678", "X-1", "V-abc", "V-0"):
+        r = await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula=malo)
+        assert r.status_code == 422, malo
+
+
+async def test_cedula_se_normaliza(client, h_asistente):
+    r = await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula=" v-0012345 ")
+    assert r.json()["cedula"] == "V-12345"
+
+
+async def test_asistente_completa_cedula_vacia_pero_no_cambia_una_existente(client, h_asistente, h_dra):
+    menor = await _alta(client, h_dra)  # sin cedula
+    r = await client.patch(f"/pacientes/{menor['id']}", headers=h_asistente, json={"cedula": "V-777"})
+    assert (r.status_code, r.json()["cedula"]) == (200, "V-777")
+    r = await client.patch(f"/pacientes/{menor['id']}", headers=h_asistente, json={"cedula": "V-888"})
+    assert r.status_code == 403
+    assert (await client.patch(f"/pacientes/{menor['id']}", headers=h_dra, json={"cedula": "V-888"})).status_code == 200
+
+
+async def test_patch_no_deja_adulto_sin_cedula_ni_duplicada(client, h_dra):
+    a = await _alta(client, h_dra, cedula="V-111", fecha_nacimiento=NAC_ADULTO)
+    b = await _alta(client, h_dra, cedula="V-222", fecha_nacimiento=NAC_ADULTO)
+    r = await client.patch(f"/pacientes/{b['id']}", headers=h_dra, json={"cedula": None})
+    assert r.status_code == 422
+    r = await client.patch(f"/pacientes/{b['id']}", headers=h_dra, json={"cedula": "V-111"})
+    assert r.status_code == 409 and a["numero_historia"] in r.json()["detail"]
+    # misma cedula en su propia ficha no es duplicado
+    assert (await client.patch(f"/pacientes/{b['id']}", headers=h_dra, json={"cedula": "V-222", "movil": "04141112222"})).status_code == 200

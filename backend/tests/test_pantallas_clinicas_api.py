@@ -2,6 +2,9 @@
 # permisos de consentimientos y vinculo usuario-profesional.
 # Especificacion: especificacion-tecnica-pantallas-clinicas.md.
 
+from datetime import date as _date, timedelta as _timedelta
+
+NAC_MENOR = (_date.today() - _timedelta(days=365 * 5)).isoformat()  # 5 anios: sin cedula obligatoria
 import uuid
 from datetime import date
 
@@ -61,7 +64,7 @@ async def _paciente(client, h, nombre="Paciente Prueba"):
     r = await client.post(
         "/pacientes",
         headers=h,
-        json={"movil": "04141234567", "nombre_completo": nombre, "fecha_registro": "2026-10-05"},
+        json={"movil": "04141234567", "nombre_completo": nombre, "fecha_registro": "2026-10-05", "fecha_nacimiento": NAC_MENOR},
     )
     assert r.status_code == 201, r.text
     return r.json()["id"]
