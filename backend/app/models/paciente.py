@@ -40,6 +40,7 @@ class Paciente(Base, UUIDPk, AuditMixin):
     # Opcional (25/09/2026): se imprime en la constancia de asistencia si existe.
     # Unica entre las que tienen valor (indice parcial uq_paciente_cedula, migracion 0028).
     cedula: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    cedula_representante: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     direccion: Mapped[str | None] = mapped_column(Text, nullable=True)
     email: Mapped[str | None] = mapped_column(String(300), nullable=True)

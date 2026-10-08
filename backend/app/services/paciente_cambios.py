@@ -20,6 +20,7 @@ ETIQUETAS = {
     "numero_historia": "N.° de historia",
     "nombre_completo": "Nombre completo",
     "cedula": "Cédula",
+    "cedula_representante": "Cédula del representante",
     "fecha_nacimiento": "Fecha de nacimiento",
     "movil": "Teléfono móvil",
     "telefono_fijo": "Teléfono fijo",

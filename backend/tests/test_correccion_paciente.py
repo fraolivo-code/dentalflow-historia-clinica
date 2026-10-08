@@ -373,3 +373,28 @@ async def test_patch_no_deja_adulto_sin_cedula_ni_duplicada(client, h_dra):
     assert r.status_code == 409 and a["numero_historia"] in r.json()["detail"]
     # misma cedula en su propia ficha no es duplicado
     assert (await client.patch(f"/pacientes/{b['id']}", headers=h_dra, json={"cedula": "V-222", "movil": "04141112222"})).status_code == 200
+
+
+async def test_pasaporte_se_acepta_normaliza_y_no_se_repite(client, h_asistente):
+    r = await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula=" p-ab123456 ")
+    assert (r.status_code, r.json()["cedula"]) == (201, "P-AB123456")
+    r = await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula="PAB123456")
+    assert r.status_code == 409
+    for malo in ("P-1", "P-AB 12345", "P-AB-12345"):
+        assert (await _post(client, h_asistente, fecha_nacimiento=NAC_ADULTO, cedula=malo)).status_code == 422, malo
+
+
+async def test_cedula_representante_es_opcional_se_normaliza_y_puede_repetirse(client, h_asistente):
+    a = await _post(client, h_asistente, fecha_nacimiento=NAC_MENOR, cedula_representante="v-0099")
+    assert (a.status_code, a.json()["cedula_representante"]) == (201, "V-99")
+    # hermanos: mismo representante
+    b = await _post(client, h_asistente, fecha_nacimiento=NAC_MENOR, cedula_representante="V-99", nombre_completo="Hermano")
+    assert b.status_code == 201
+    assert (await _post(client, h_asistente, fecha_nacimiento=NAC_MENOR, cedula_representante="99")).status_code == 422
+    sin = await _post(client, h_asistente, fecha_nacimiento=NAC_MENOR)
+    assert sin.json()["cedula_representante"] is None
+    # la asistente la completa si esta vacia, no la cambia
+    r = await client.patch(f"/pacientes/{sin.json()['id']}", headers=h_asistente, json={"cedula_representante": "V-5"})
+    assert r.status_code == 200
+    r = await client.patch(f"/pacientes/{sin.json()['id']}", headers=h_asistente, json={"cedula_representante": "V-6"})
+    assert r.status_code == 403

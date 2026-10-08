@@ -26,15 +26,22 @@ def _limpiar_ultima_visita(v: str | None) -> str | None:
 
 
 def _normalizar_cedula(v: str | None) -> str | None:
-    """'v-012345' -> 'V-12345'; vacio -> None. Solo V o E y hasta 10 digitos."""
+    """'v-012345' -> 'V-12345'; 'p-ab123456' -> 'P-AB123456'; vacio -> None.
+    V/E: solo numeros (hasta 10). P (pasaporte): letras y numeros (5 a 15)."""
     if v is None:
         return None
     v = v.strip().upper()
     if not v:
         return None
+    pasaporte = re.fullmatch(r"P-?([A-Z0-9]{5,15})", v)
+    if pasaporte:
+        return f"P-{pasaporte[1]}"
     m = re.fullmatch(r"([VE])-?(\d{1,10})", v)
     if m is None or int(m[2]) == 0:
-        raise ValueError("La cédula debe ser V o E seguida de solo números (ej. V-12345678)")
+        raise ValueError(
+            "La cédula debe ser V o E seguida de solo números (ej. V-12345678), "
+            "o P seguida del pasaporte (ej. P-AB123456)"
+        )
     return f"{m[1]}-{int(m[2])}"
 
 
@@ -48,6 +55,8 @@ class PacienteCreate(BaseModel):
     movil: str
     nombre_completo: str
     cedula: str | None = None
+    # Cedula del padre/madre/tutor de un menor: segundo dato para ubicarlo. No es unica.
+    cedula_representante: str | None = None
     fecha_nacimiento: date | None = None
     direccion: str | None = None
     email: str | None = None
@@ -74,7 +83,7 @@ class PacienteCreate(BaseModel):
     def _ultima_visita_limpia(cls, v: str | None) -> str | None:
         return _limpiar_ultima_visita(v)
 
-    @field_validator("cedula")
+    @field_validator("cedula", "cedula_representante")
     @classmethod
     def _cedula_normalizada(cls, v: str | None) -> str | None:
         return _normalizar_cedula(v)
@@ -114,6 +123,7 @@ class PacienteUpdate(BaseModel):
     movil: str | None = None
     nombre_completo: str | None = None
     cedula: str | None = None
+    cedula_representante: str | None = None
     fecha_nacimiento: date | None = None
     direccion: str | None = None
     email: str | None = None
@@ -142,7 +152,7 @@ class PacienteUpdate(BaseModel):
     def _ultima_visita_limpia(cls, v: str | None) -> str | None:
         return _limpiar_ultima_visita(v)
 
-    @field_validator("cedula")
+    @field_validator("cedula", "cedula_representante")
     @classmethod
     def _cedula_normalizada(cls, v: str | None) -> str | None:
         return _normalizar_cedula(v)
@@ -177,6 +187,7 @@ class PacienteRead(AuditRead):
     movil: str
     nombre_completo: str
     cedula: str | None
+    cedula_representante: str | None
     fecha_nacimiento: date | None
     direccion: str | None
     email: str | None

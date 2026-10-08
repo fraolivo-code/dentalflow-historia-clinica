@@ -30,7 +30,7 @@ router = APIRouter(
 # Desde esta edad la cedula es obligatoria; antes, opcional (el sistema la pide al cumplirla).
 EDAD_CEDULA_OBLIGATORIA = 12
 # Datos de identidad que la asistente puede completar (no cambiar) si estan vacios.
-CAMPOS_COMPLETABLES = frozenset({"cedula", "fecha_nacimiento"})
+CAMPOS_COMPLETABLES = frozenset({"cedula", "cedula_representante", "fecha_nacimiento"})
 
 
 def _edad(nacimiento: date, hoy: date) -> int:
