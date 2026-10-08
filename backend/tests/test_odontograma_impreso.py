@@ -263,9 +263,28 @@ async def test_odontograma_en_blanco(client, h_asistente, h_dra):
         assert _plan(html) == ["", "", "", ""]  # lineas libres, sin tratamientos
 
 
+async def test_periodontograma_en_blanco(client, h_asistente, h_dra):
+    for h in (h_asistente, h_dra):
+        r = await client.get("/pdf/periodontograma-blanco", headers=h)
+        assert r.status_code == 200
+        assert 'filename="periodontograma-blanco.pdf"' in r.headers["content-disposition"]
+        html = r.text
+        assert "size: A4 landscape" in html  # una hoja horizontal
+        assert "N.° de historia:" in html and "Paciente:" in html and "Fecha:" in html
+        # los 32 dientes, en orden de boca, en cada arco
+        for n in (18, 11, 21, 28, 48, 41, 31, 38):
+            assert f'colspan="3">{n}</td>' in html
+        assert html.count('colspan="3">') >= 32 + 4 * 16  # numeros + movilidad y furcacion
+        assert "Arco superior" in html and "Arco inferior" in html
+        assert "Palatino" in html and "Lingual" in html
+        assert "MG (mm)" in html and "PS (mm)" in html and "NI (mm)" in html
+        assert "--acento: #000" in html  # sin colores de marca
+
+
 async def test_los_impresos_en_blanco_piden_sesion(client):
     assert (await client.get("/pdf/formulario-ingreso")).status_code == 401
     assert (await client.get("/pdf/odontograma-blanco")).status_code == 401
+    assert (await client.get("/pdf/periodontograma-blanco")).status_code == 401
 
 
 # ===================================================== A.3 odontograma actual

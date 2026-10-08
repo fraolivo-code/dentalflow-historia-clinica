@@ -1,0 +1,78 @@
+{% extends "_documento.html" %}
+{% from "_odontograma_hoja.html" import datos_a_mano %}
+
+{#- Periodontograma en blanco para llenar a mano: una sola hoja A4 horizontal con
+    los dos arcos (18-28 y 48-38). Por diente: movilidad y furcacion; por cara
+    (3 sitios): placa, sangrado, margen gingival (MG), profundidad de sondaje (PS)
+    y nivel de insercion (NI = PS - MG). Sin datos de paciente y sin firma.
+    Misma estructura que la pantalla de carga (components/Periodontograma). #}
+{% block titulo %}Periodontograma{% endblock %}
+
+{% block estilos %}
+  :root { --primario: #000; --acento: #000; --texto: #000; --secundario: #555; --borde: #999; }
+  @page { size: A4 landscape; margin: 0.8cm 0.9cm; @top-left { content: none; } }
+  body { line-height: 1.2; font-size: 8pt; }
+  .membrete { margin-bottom: 3pt; padding-bottom: 2pt; border-bottom-width: 1pt; }
+  .membrete-nombre { font-size: 12pt; display: inline; }
+  .membrete-detalle { display: inline; margin-left: 8pt; font-size: 8pt; }
+  h1 { font-size: 11pt; margin: 0 0 2pt; text-align: left; }
+  .odo-datos td { height: 14pt; }
+  .odo-datos .linea { border-bottom: 0.75pt solid #000; }
+  {% include "_odontograma_hoja.css" %}
+
+  .perio { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 5pt; page-break-inside: avoid; }
+  .perio td, .perio th { border: 0.4pt solid #8a8a8a; height: 13pt; padding: 0; text-align: center; font-weight: 400; font-size: 6.5pt; }
+  .perio .etq { width: 17mm; text-align: left; padding-left: 2pt; font-size: 6.5pt; color: #333; border-left-width: 0.4pt; }
+  .perio .cara { background: #ececec; font-weight: 600; font-size: 6.5pt; text-align: left; padding-left: 2pt; }
+  .perio .diente { font-weight: 700; font-size: 8.5pt; background: #f6f6f6; }
+  .perio .ini { border-left: 0.9pt solid #000; }
+  .perio .centro { border-left: 1.6pt solid #000; }
+  .perio .noaplica { background: #d9d9d9; }
+  .perio .arco { background: #000; color: #fff; font-weight: 700; font-size: 8pt; text-align: left; padding-left: 3pt; }
+  .leyenda { font-size: 6.8pt; color: #333; margin: 0; }
+{% endblock %}
+
+{% block cuerpo %}
+    {{ datos_a_mano() }}
+    {%- for arco in arcos %}
+    <table class="perio">
+      <colgroup>
+        <col style="width: 17mm">
+        {%- for _ in arco.dientes %}<col><col><col>{% endfor %}
+      </colgroup>
+      <tr><td class="arco" colspan="{{ arco.dientes | length * 3 + 1 }}">{{ arco.nombre }}</td></tr>
+      <tr>
+        <td class="etq">Diente</td>
+        {%- for n in arco.dientes %}
+        <td class="diente ini{% if loop.index == 9 %} centro{% endif %}" colspan="3">{{ n }}</td>
+        {%- endfor %}
+      </tr>
+      <tr>
+        <td class="etq">Movilidad (0-3)</td>
+        {%- for n in arco.dientes %}<td class="ini{% if loop.index == 9 %} centro{% endif %}" colspan="3"></td>{% endfor %}
+      </tr>
+      <tr>
+        <td class="etq">Furcación (I-III)</td>
+        {%- for n in arco.dientes %}<td class="ini{% if loop.index == 9 %} centro{% endif %}{% if not (n % 10 >= 6 or n in (14, 24)) %} noaplica{% endif %}" colspan="3"></td>{% endfor %}
+      </tr>
+      {%- for cara in arco.caras %}
+      <tr><td class="cara" colspan="{{ arco.dientes | length * 3 + 1 }}">{{ cara }}</td></tr>
+      {%- for fila in ("Placa", "Sangrado", "MG (mm)", "PS (mm)", "NI (mm)") %}
+      <tr>
+        <td class="etq">{{ fila }}</td>
+        {%- for n in arco.dientes %}
+        <td class="ini{% if loop.index == 9 %} centro{% endif %}"></td><td></td><td></td>
+        {%- endfor %}
+      </tr>
+      {%- endfor %}
+      {%- endfor %}
+    </table>
+    {%- endfor %}
+    <p class="leyenda">
+      MG: margen gingival, <b>en negativo si hay recesión</b>. PS: profundidad de sondaje. NI = PS − MG.
+      Movilidad: escala de Miller (0 a 3). Furcación: I, II o III (solo molares y dientes 14 y 24).
+      Placa y sangrado: marque con un punto en el sitio. Cada diente tiene 3 sitios por cara.
+    </p>
+{% endblock %}
+
+{% block firma %}{% endblock %}

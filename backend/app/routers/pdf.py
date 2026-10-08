@@ -109,6 +109,37 @@ async def pdf_odontograma_blanco(session: AsyncSession = Depends(get_session)):
     )
 
 
+# Hoja de periodontograma en blanco: dientes en orden de boca, de la derecha a la
+# izquierda del paciente (como esta en el papel). Arco superior: vestibular arriba
+# y palatino abajo; inferior: lingual arriba y vestibular abajo.
+_ARCOS_PERIODONTOGRAMA = (
+    {
+        "nombre": "Arco superior",
+        "dientes": [*range(18, 10, -1), *range(21, 29)],
+        "caras": ("Vestibular", "Palatino"),
+    },
+    {
+        "nombre": "Arco inferior",
+        "dientes": [*range(48, 40, -1), *range(31, 39)],
+        "caras": ("Lingual", "Vestibular"),
+    },
+)
+
+
+@router.get("/pdf/periodontograma-blanco", dependencies=[Depends(get_current_usuario)])
+async def pdf_periodontograma_blanco(session: AsyncSession = Depends(get_session)):
+    """Periodontograma en blanco para llenar a mano: una hoja A4 horizontal, sin datos de nadie."""
+    pdf = await generar_pdf(
+        "periodontograma_blanco.html",
+        {"membrete": await membrete_consultorio(session), "arcos": _ARCOS_PERIODONTOGRAMA},
+    )
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="periodontograma-blanco.pdf"'},
+    )
+
+
 @router.get(
     "/pacientes/{paciente_id}/pdf/odontograma-actual", dependencies=[Depends(requerir_acceso_total)]
 )
