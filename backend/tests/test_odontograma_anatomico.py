@@ -103,7 +103,7 @@ def _semilla_catalogo():
 
 
 def test_json_version_y_cantidades():
-    assert JSON["version"] == "2026-10-06.1"
+    assert JSON["version"] == "2026-10-15.1"
     assert len(JSON["dientes"]) == 32
     raices = sum(len(_forma(int(n))["raices"]) for n in JSON["dientes"])
     assert raices == 52
@@ -519,9 +519,9 @@ def test_requiere_periodontal_PER_naranja_junto_al_numero_y_detras_de_SN():
     assert x["PER"] > x["SN"]
 
 
-def test_spp_texto_azul_junto_a_la_corona_vestibular():
+def test_spp_texto_rojo_junto_a_la_corona_vestibular():
     svg = _dibujo([_h(23, "spp")])
-    textos = [t for t in _diente(svg, 23) if _tag(t) == "text" and t.text == "SPP" and t.get("fill") == AZUL]
+    textos = [t for t in _diente(svg, 23) if _tag(t) == "text" and t.text == "SPP" and t.get("fill") == ROJO]
     assert len(textos) == 1
     _, c = _ancho_y_cervical(23)
     assert c < float(textos[0].get("y")) < 100  # a la altura de la corona de la vista vestibular
@@ -611,3 +611,46 @@ async def test_historia_completa_genera_con_el_dibujo_nuevo(client, h_dra, sessi
     svg = ET.fromstring(str(odo_ctx["svg"]))
     assert len(_con(_vista(svg, 16, "palatina"), "ellipse", fill=ROJO)) == 1
     assert len(_con(_vista(svg, 46, "lingual"), "ellipse", fill=AZUL)) == 1
+
+
+# ----------------------------------------- fase 2 del flujo de visitas (15/10/2026)
+
+
+def test_sellante_SELL_azul_y_cambio_de_coloracion_CC_marron_dentro_de_la_corona():
+    svg = _dibujo([_h(23, "sellante"), _h(23, "cambio_coloracion")])
+    sell = [t for t in _diente(svg, 23) if _tag(t) == "text" and t.text == "SELL" and t.get("fill") == AZUL]
+    cc = [t for t in _diente(svg, 23) if _tag(t) == "text" and t.text == "CC" and t.get("fill") == odo.MARRON]
+    assert len(sell) == 1 and len(cc) == 1
+    assert sell[0].get("y") != cc[0].get("y")  # cada una en su renglon
+    assert not [t for t in _diente(_dibujo([]), 23) if _tag(t) == "text" and t.text in ("SELL", "CC")]
+
+
+def test_sellante_baja_un_renglon_si_el_diente_aun_tiene_SPP():
+    solo = _dibujo([_h(23, "sellante")])
+    con = _dibujo([_h(23, "sellante"), _h(23, "spp")])
+    y = lambda svg: next(t for t in _diente(svg, 23) if _tag(t) == "text" and t.text == "SELL" and t.get("fill") == AZUL).get("y")  # noqa: E731
+    assert y(solo) != y(con)
+
+
+def test_perno_se_dibuja_aparte_del_conducto_azul_o_rojo():
+    def gruesas(hallazgos, color):
+        return [e for e in _diente(_dibujo(hallazgos), 45).iter()
+                if _tag(e) == "line" and e.get("stroke") == color and e.get("stroke-width") == "3.5"]
+
+    assert not gruesas([_h(45, "conducto_ok")], AZUL)
+    assert gruesas([_h(45, "conducto_ok"), _h(45, "perno_ok")], AZUL)
+    assert gruesas([_h(45, "perno_ok")], AZUL)  # perno solo, sin conducto
+    assert gruesas([_h(45, "conducto_ok"), _h(45, "perno_defecto")], ROJO)
+    assert not gruesas([_h(45, "perno_defecto")], AZUL)
+
+
+def test_nuevas_marcas_en_blanco_y_negro_sin_color_de_marca():
+    svg = _dibujo([_h(23, "sellante"), _h(23, "cambio_coloracion"), _h(45, "perno_defecto")], modo=MODO_GRIS)
+    usados = {e.get("fill") for e in svg.iter() if e.get("fill")} | {e.get("stroke") for e in svg.iter() if e.get("stroke")}
+    assert odo.MARRON not in usados and odo.NARANJA not in usados
+
+
+def test_etiquetas_de_las_marcas_nuevas():
+    assert etiquetas.etiqueta_hallazgo(TipoHallazgo.perno_ok, None, 22) == "Perno en buen estado"
+    assert "SELL" in etiquetas.HALLAZGO[TipoHallazgo.sellante]
+    assert "CC" in etiquetas.HALLAZGO[TipoHallazgo.cambio_coloracion]

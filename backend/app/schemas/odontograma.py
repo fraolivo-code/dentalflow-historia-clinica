@@ -11,6 +11,7 @@ from app.enums import (
     SuperficieDental,
     TipoHallazgo,
     TipoLesionApical,
+    TratamientoRealizado,
     validar_superficie,
 )
 from app.schemas.common import AuditRead, NumeroDienteValidoMixin
@@ -44,6 +45,22 @@ class OdontogramaHallazgoCreate(NumeroDienteValidoMixin):
         return self
 
 
+class TratamientoRealizadoCreate(NumeroDienteValidoMixin):
+    """Accion «Tratamiento realizado» (15/10/2026): cierra los hallazgos «antes» y abre los «despues»."""
+
+    numero_diente: int
+    tratamiento: TratamientoRealizado
+    fecha: date
+    superficies: list[SuperficieDental] = []
+    # Solo para la carilla: carilla_ok, corona_ok o ausente (lo elige la Dra. al terminar).
+    resultado: TipoHallazgo | None = None
+    # None = el cierre propuesto por defecto; una lista (aunque vacia) = exactamente esos.
+    cierra_ids: list[UUID] | None = None
+    descripcion: str | None = None
+    visita_id: UUID | None = None
+    tratamiento_id: UUID | None = None
+
+
 class OdontogramaHallazgoResolver(BaseModel):
     """Cierre manual de un hallazgo (PATCH .../resolver, 23/09/2026)."""
 
@@ -66,6 +83,12 @@ class OdontogramaHallazgoRead(AuditRead):
     origen: OrigenHallazgo
     tratamiento_id: UUID | None
     notas: str | None
+
+
+class TratamientoRealizadoRead(BaseModel):
+    cerrados: list[OdontogramaHallazgoRead]
+    abiertos: list[OdontogramaHallazgoRead]
+    bitacora_id: UUID
 
 
 class OdontogramaLesionApicalCreate(NumeroDienteValidoMixin):

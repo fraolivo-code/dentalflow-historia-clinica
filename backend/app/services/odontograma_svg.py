@@ -47,6 +47,7 @@ ARCO_INFERIOR = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
 AZUL = _JSON["colores"]["azul"]
 ROJO = _JSON["colores"]["rojo"]
 NARANJA = _JSON["colores"]["naranja"]
+MARRON = _JSON["colores"]["marron"]
 TRAZO = _JSON["colores"]["trazo"]
 RAIZ = _JSON["colores"]["raiz"]
 CORONA = _JSON["colores"]["corona"]
@@ -68,6 +69,7 @@ _A_BLANCO_Y_NEGRO = {
     AZUL: _GRIS_AZUL,
     ROJO: _GRIS_ROJO,
     NARANJA: _GRIS_ROJO,  # PER: igual que lo que es rojo
+    MARRON: _GRIS_ROJO,  # CC
     TRAZO: "#000000",  # contornos de los dientes y numeros
     RAIZ: "#f2f2f2",
     CERVICAL: "#808080",
@@ -207,6 +209,7 @@ class _Estado:
     ausente: bool
     implante: bool
     tipo_endo: str | None
+    perno: str | None       # 'perno_ok' | 'perno_defecto' (el defecto manda) | None
     movimientos: list
     exodoncia: str | None
     rellenos: list          # [(tipo, superficie)] de caries / obturaciones, en orden de pintado
@@ -240,6 +243,7 @@ def _estado(hallazgos, lesiones, en_puente) -> _Estado:
         ausente=ausente,
         implante=implante and not ausente,
         tipo_endo=tipo_endo,
+        perno="perno_defecto" if "perno_defecto" in tipos else "perno_ok" if "perno_ok" in tipos else None,
         movimientos=[t for t in TIPOS_MOVIMIENTO if t in tipos],
         exodoncia="Q" if "exodoncia_quirurgica" in tipos else "S" if "exodoncia_simple" in tipos else None,
         rellenos=rellenos,
@@ -362,21 +366,26 @@ class _Diente:
             s.append(_linea(cx - 4.5, yy, cx + 4.5, yy, **imp))
         return "".join(s), y_apice
 
-    def _conductos(self, tipo: str) -> str:
+    def _conductos(self, tipo: str | None, perno: str | None = None) -> str:
         azul = {"stroke": AZUL, "stroke-width": 2, "stroke-linecap": "round"}
         grueso = {"stroke": AZUL, "stroke-width": 3.5, "stroke-linecap": "round"}
         rojo = {"stroke": ROJO, "stroke-width": 2, "stroke-linecap": "round"}
+        grueso_rojo = {"stroke": ROJO, "stroke-width": 3.5, "stroke-linecap": "round"}
         s = []
         for r in self.forma["raices"]:
             x1, y1, x2, y2 = r["conducto"]
             l = lambda dx, est: _linea(x1 + dx, y1, x2 + dx, y2, **est)  # noqa: E731
-            s.append({
-                "conducto_ok": lambda: l(0, azul),
-                "conducto_ok_perno": lambda: l(0, grueso),
-                "conducto_defecto": lambda: l(-1.5, azul) + l(1.5, rojo),
-                "conducto_perno_defecto": lambda: l(-2, grueso) + l(2.5, rojo),
-                "conducto_indicado": lambda: l(0, rojo),
-            }[tipo]())
+            if tipo:
+                s.append({
+                    "conducto_ok": lambda: l(0, azul),
+                    "conducto_ok_perno": lambda: l(0, grueso),
+                    "conducto_defecto": lambda: l(-1.5, azul) + l(1.5, rojo),
+                    "conducto_perno_defecto": lambda: l(-2, grueso) + l(2.5, rojo),
+                    "conducto_indicado": lambda: l(0, rojo),
+                }[tipo]())
+            # Perno separado del conducto (15/10/2026): trazo grueso encima del conducto.
+            if perno:
+                s.append(l(0, grueso if perno == "perno_ok" else grueso_rojo))
         return "".join(s)
 
     def _apice(self, nombre: str) -> tuple[float, float]:
@@ -416,8 +425,8 @@ class _Diente:
         if e.implante:
             tornillo, y_apice_tornillo = self._tornillo()
             d.append(tornillo)
-        elif e.tipo_endo:
-            d.append(self._conductos(e.tipo_endo))
+        elif e.tipo_endo or e.perno:
+            d.append(self._conductos(e.tipo_endo, e.perno))
 
         # Contorno del diente. Con resto radicular la corona va en punteado.
         if resto:
@@ -565,7 +574,14 @@ def _diente(numero: int, x: float, y0: float, hallazgos, lesiones, en_puente) ->
     if e.tiene("diente_impactado"):
         extra.append(_texto(cx, y_vest(centro_corona_local) + 4, "IMP", ROJO, 9, "middle"))
     if e.tiene("spp"):
-        extra.append(_texto(cx, y_vest(c + 31), "SPP", AZUL, 7.5, "middle"))
+        extra.append(_texto(cx, y_vest(c + 31), "SPP", ROJO, 7.5, "middle"))
+    # Sellante (SELL, azul) y cambio de coloracion (CC, marron) dentro de la corona vestibular
+    # (15/10/2026): junto al numero chocaban con el diente vecino. Si el diente aun tiene SPP,
+    # SELL baja un renglon.
+    if e.tiene("sellante"):
+        extra.append(_texto(cx, y_vest(c + (41 if e.tiene("spp") else 31)), "SELL", AZUL, 7.5, "middle"))
+    if e.tiene("cambio_coloracion"):
+        extra.append(_texto(cx, y_vest(c + 19), "CC", MARRON, 7.5, "middle"))
 
     # Exodoncia: X roja sobre las tres vistas (+ S / Q junto al numero).
     if e.exodoncia:

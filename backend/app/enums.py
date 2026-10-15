@@ -47,6 +47,23 @@ class TipoVisita(str, enum.Enum):
     otra = "otra"
 
 
+class TratamientoRealizado(str, enum.Enum):
+    """Accion «Tratamiento realizado» del odontograma (15/10/2026); reglas en services/tratamiento_realizado.py."""
+
+    restauracion = "restauracion"
+    cambio_restauracion = "cambio_restauracion"
+    endodoncia = "endodoncia"
+    perno = "perno"
+    extraccion = "extraccion"
+    corona = "corona"
+    carilla = "carilla"
+    implante = "implante"
+    sellante = "sellante"
+    diastema_resina = "diastema_resina"
+    diastema_carilla = "diastema_carilla"
+    diastema_ortodoncia = "diastema_ortodoncia"
+
+
 class TipoHallazgo(str, enum.Enum):
     sano = "sano"
     ausente = "ausente"
@@ -82,6 +99,13 @@ class TipoHallazgo(str, enum.Enum):
     # Agregado 06/10/2026 (migracion 0027). Grupo "condicion": el diente requiere
     # tratamiento periodontal (se dibuja "PER" en naranja junto al numero).
     requiere_periodontal = "requiere_periodontal"
+    # Agregados 15/10/2026 (migracion 0031, flujo de visitas fase 2). Perno separado del
+    # conducto (grupo independiente); sellante aplicado (SELL, azul) y cambio de coloracion
+    # (CC, marron) son del grupo condicion.
+    perno_ok = "perno_ok"
+    perno_defecto = "perno_defecto"
+    sellante = "sellante"
+    cambio_coloracion = "cambio_coloracion"
 
 
 # Grupos de exclusividad (seccion 1.2 / 3.3). Logica de aplicacion, no de la
@@ -100,6 +124,8 @@ GRUPO_CONDICION = {
     TipoHallazgo.diastema,
     TipoHallazgo.supernumerario,
     TipoHallazgo.requiere_periodontal,
+    TipoHallazgo.sellante,
+    TipoHallazgo.cambio_coloracion,
 }
 # Todo lo que no esta en GRUPO_EXCLUSIVE, GRUPO_ENDO ni GRUPO_CONDICION
 # pertenece a "independent".

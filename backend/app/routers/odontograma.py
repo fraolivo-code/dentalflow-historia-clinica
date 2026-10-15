@@ -18,7 +18,10 @@ from app.schemas.odontograma import (
     OdontogramaLesionApicalCreate,
     OdontogramaLesionApicalRead,
     OdontogramaLesionApicalResolver,
+    TratamientoRealizadoCreate,
+    TratamientoRealizadoRead,
 )
+from app.services import tratamiento_realizado
 from app.services.odontograma_logic import (
     aplicar_hallazgo,
     buscar_lesion_duplicada_activa,
@@ -80,6 +83,53 @@ async def crear_hallazgo(
         raise HTTPException(400, "numero_diente del body no coincide con el de la URL")
     await obtener_paciente_o_404(paciente_id, session)
     return await aplicar_hallazgo(session, paciente_id, numero_diente, datos, usuario.id)
+
+
+@router.get("/tratamientos-realizados")
+async def reglas_de_tratamientos_realizados():
+    """Catalogo de la accion «Tratamiento realizado»: que abre y que cierra cada uno."""
+    return tratamiento_realizado.catalogo()
+
+
+@router.post(
+    "/pacientes/{paciente_id}/dientes/{numero_diente}/tratamiento-realizado",
+    response_model=TratamientoRealizadoRead,
+    status_code=201,
+)
+async def registrar_tratamiento_realizado(
+    paciente_id: UUID,
+    numero_diente: int,
+    datos: TratamientoRealizadoCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """
+    Tratamiento terminado en un diente (15/10/2026): en una sola transaccion cierra los
+    hallazgos «antes» y abre los «despues» con la fecha dada, y deja una entrada en la
+    bitacora. Reglas: services/tratamiento_realizado.py.
+    """
+    if datos.numero_diente != numero_diente:
+        raise HTTPException(400, "numero_diente del body no coincide con el de la URL")
+    await obtener_paciente_o_404(paciente_id, session)
+    cerrados, abiertos, entrada = await tratamiento_realizado.registrar(
+        session,
+        paciente_id,
+        numero_diente,
+        tratamiento=datos.tratamiento,
+        fecha=datos.fecha,
+        superficies=datos.superficies,
+        resultado=datos.resultado,
+        cierra_ids=datos.cierra_ids,
+        descripcion=datos.descripcion,
+        visita_id=datos.visita_id,
+        tratamiento_id=datos.tratamiento_id,
+        usuario_id=usuario.id,
+    )
+    return TratamientoRealizadoRead(
+        cerrados=[OdontogramaHallazgoRead.model_validate(h) for h in cerrados],
+        abiertos=[OdontogramaHallazgoRead.model_validate(h) for h in abiertos],
+        bitacora_id=entrada.id,
+    )
 
 
 @router.patch(
