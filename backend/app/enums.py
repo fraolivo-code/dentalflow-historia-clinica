@@ -314,6 +314,20 @@ class OrigenTratamiento(str, enum.Enum):
     remitido_externo = "remitido_externo"
 
 
+class TipoExamen(str, enum.Enum):
+    """Examen que la Dra. indica y el paciente trae (flujo de visitas, fase 3, 15/10/2026)."""
+
+    rx_periapical = "rx_periapical"
+    rx_panoramica = "rx_panoramica"
+    tomografia = "tomografia"
+    otro = "otro"
+
+
+class EstadoExamen(str, enum.Enum):
+    indicado = "indicado"
+    traido = "traido"
+
+
 class TipoObservacion(str, enum.Enum):
     """Etapa 3, seccion 9. Reemplaza general/clinica/administrativa de Etapa 1."""
 

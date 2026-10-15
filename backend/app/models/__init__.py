@@ -9,6 +9,7 @@ from app.models.consentimiento import Consentimiento
 from app.models.constancia_asistencia import ConstanciaAsistencia
 from app.models.configuracion_consultorio import ConfiguracionConsultorio
 from app.models.consulta_vinculacion import ConsultaVinculacion
+from app.models.examen import ExamenSolicitado
 from app.models.indicacion import IndicacionTratamiento, PlantillaIndicacion
 from app.models.observacion import Observacion
 from app.models.odontograma import (
@@ -58,6 +59,7 @@ __all__ = [
     "Tratamiento",
     "TratamientoDiente",
     "Usuario",
+    "ExamenSolicitado",
     "Visita",
     "VisitaTratamiento",
 ]
