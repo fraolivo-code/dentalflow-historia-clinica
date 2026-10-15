@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
-from app.enums import HigieneBucal
+from app.enums import HigieneBucal, TipoVisita
 from app.models.common import AuditMixin, UUIDPk
 
 
@@ -26,6 +26,17 @@ class Visita(Base, UUIDPk, AuditMixin):
         UUID(as_uuid=True), ForeignKey("usuario.id"), nullable=False
     )
     motivo_consulta: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Migracion 0030. NULL: sin clasificar (visita liviana de la asistente o anterior a
+    # esta funcion). Decide que pide la pantalla: motivo y examen clinico.
+    tipo: Mapped[TipoVisita | None] = mapped_column(
+        Enum(
+            TipoVisita,
+            name="tipo_visita",
+            native_enum=True,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        ),
+        nullable=True,
+    )
 
     # Examen extraoral
     examen_extraoral_atm: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -58,3 +69,16 @@ class Visita(Base, UUIDPk, AuditMixin):
     examen_otras: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     hallazgos: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class VisitaTratamiento(Base):
+    """Tratamientos a los que corresponde una visita (visita de tratamiento / control con restauracion)."""
+
+    __tablename__ = "visita_tratamiento"
+
+    visita_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("visita.id"), primary_key=True
+    )
+    tratamiento_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tratamiento.id"), primary_key=True, index=True
+    )

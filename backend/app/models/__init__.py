@@ -26,7 +26,7 @@ from app.models.receta import Medicamento, Receta, RecetaMedicamento
 from app.models.token_recuperacion import TokenRecuperacion
 from app.models.tratamiento import Tratamiento, TratamientoDiente
 from app.models.usuario import Usuario
-from app.models.visita import Visita
+from app.models.visita import Visita, VisitaTratamiento
 
 __all__ = [
     "Antecedente",
@@ -59,4 +59,5 @@ __all__ = [
     "TratamientoDiente",
     "Usuario",
     "Visita",
+    "VisitaTratamiento",
 ]

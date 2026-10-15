@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.enums import HigieneBucal
+from app.enums import HigieneBucal, TipoVisita
 from app.schemas.common import AuditRead
 
 
@@ -18,6 +18,9 @@ class VisitaCreate(BaseModel):
     # asistente — ver _validar_visita_liviana_si_asistente en visitas.py.
     fecha: date
     motivo_consulta: str | None = None
+    # Flujo de visitas (14/10/2026). Solo dra: la asistente registra la visita sin tipo.
+    tipo: TipoVisita | None = None
+    tratamiento_ids: list[UUID] = []
     examen_extraoral_atm: str | None = None
     examen_extraoral_ganglios: str | None = None
     examen_extraoral_otros: str | None = None
@@ -42,6 +45,9 @@ class VisitaUpdate(BaseModel):
     """
 
     motivo_consulta: str | None = None
+    tipo: TipoVisita | None = None
+    # Si viene, REEMPLAZA los tratamientos vinculados.
+    tratamiento_ids: list[UUID] | None = None
     examen_extraoral_atm: str | None = None
     examen_extraoral_ganglios: str | None = None
     examen_extraoral_otros: str | None = None
@@ -64,6 +70,8 @@ class VisitaRead(AuditRead):
     fecha: date
     responsable: UUID
     motivo_consulta: str | None
+    tipo: TipoVisita | None
+    tratamiento_ids: list[UUID] = []
     examen_extraoral_atm: str | None
     examen_extraoral_ganglios: str | None
     examen_extraoral_otros: str | None

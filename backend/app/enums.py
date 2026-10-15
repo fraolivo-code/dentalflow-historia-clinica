@@ -37,6 +37,16 @@ class HigieneBucal(str, enum.Enum):
     pesima = "P"
 
 
+class TipoVisita(str, enum.Enum):
+    """Que se pide en la visita (flujo de visitas, 14/10/2026). NULL = sin clasificar."""
+
+    evaluacion = "evaluacion"
+    tratamiento = "tratamiento"
+    control_limpieza = "control_limpieza"
+    emergencia = "emergencia"
+    otra = "otra"
+
+
 class TipoHallazgo(str, enum.Enum):
     sano = "sano"
     ausente = "ausente"

@@ -1,14 +1,16 @@
+from collections import defaultdict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session, requerir_dra
-from app.enums import RolUsuario
+from app.enums import RolUsuario, TipoVisita
 from app.models.common import ahora
+from app.models.tratamiento import Tratamiento
 from app.models.usuario import Usuario
-from app.models.visita import Visita
+from app.models.visita import Visita, VisitaTratamiento
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.visita import VisitaCreate, VisitaRead, VisitaUpdate
 
@@ -42,7 +44,9 @@ def _validar_visita_liviana_si_asistente(datos: VisitaCreate, usuario: Usuario) 
     if usuario.rol != RolUsuario.asistente:
         return
     trae_campo_clinico = (
-        datos.higiene is not None
+        datos.tipo is not None
+        or bool(datos.tratamiento_ids)
+        or datos.higiene is not None
         or any(getattr(datos, campo) is not None for campo in _CAMPOS_CLINICOS_OPCIONALES)
         or any(getattr(datos, campo) for campo in _CAMPOS_CLINICOS_BOOL)
     )
@@ -50,6 +54,46 @@ def _validar_visita_liviana_si_asistente(datos: VisitaCreate, usuario: Usuario) 
         raise HTTPException(
             422, "el rol asistente solo puede registrar fecha y motivo de consulta"
         )
+
+
+async def _tratamientos_validos(
+    session: AsyncSession, paciente_id: UUID, ids: list[UUID]
+) -> list[UUID]:
+    """Sin repetidos y todos del mismo paciente."""
+    ids = list(dict.fromkeys(ids))
+    if ids:
+        encontrados = (
+            await session.execute(
+                select(Tratamiento.id).where(
+                    Tratamiento.id.in_(ids), Tratamiento.paciente_id == paciente_id
+                )
+            )
+        ).scalars().all()
+        if len(encontrados) != len(ids):
+            raise HTTPException(422, "Algún tratamiento no existe o no es de este paciente.")
+    return ids
+
+
+def _exigir_tratamiento_si_corresponde(tipo: TipoVisita | None, ids: list[UUID]) -> None:
+    if tipo == TipoVisita.tratamiento and not ids:
+        raise HTTPException(422, "Una visita de tratamiento necesita al menos un tratamiento.")
+
+
+async def _leer(session: AsyncSession, visitas: list[Visita]) -> list[VisitaRead]:
+    """VisitaRead con los tratamientos vinculados (una sola consulta)."""
+    vinculos: dict[UUID, list[UUID]] = defaultdict(list)
+    if visitas:
+        filas = await session.execute(
+            select(VisitaTratamiento.visita_id, VisitaTratamiento.tratamiento_id).where(
+                VisitaTratamiento.visita_id.in_([v.id for v in visitas])
+            )
+        )
+        for visita_id, tratamiento_id in filas:
+            vinculos[visita_id].append(tratamiento_id)
+    return [
+        VisitaRead.model_validate(v).model_copy(update={"tratamiento_ids": vinculos[v.id]})
+        for v in visitas
+    ]
 
 
 @router.post("/pacientes/{paciente_id}/visitas", response_model=VisitaRead, status_code=201)
@@ -61,19 +105,24 @@ async def crear_visita(
 ):
     _validar_visita_liviana_si_asistente(datos, usuario)
     await obtener_paciente_o_404(paciente_id, session)
+    tratamiento_ids = await _tratamientos_validos(session, paciente_id, datos.tratamiento_ids)
+    _exigir_tratamiento_si_corresponde(datos.tipo, tratamiento_ids)
     # responsable = el usuario autenticado que crea la visita (dra o
     # asistente) — si en el futuro alguien distinto atiende bajo la cuenta
     # de otro usuario, este campo deja de alcanzar y hay que revisarlo.
     visita = Visita(
         paciente_id=paciente_id,
-        **datos.model_dump(),
+        **datos.model_dump(exclude={"tratamiento_ids"}),
         responsable=usuario.id,
         creado_por=usuario.id,
     )
     session.add(visita)
+    await session.flush()
+    for tratamiento_id in tratamiento_ids:
+        session.add(VisitaTratamiento(visita_id=visita.id, tratamiento_id=tratamiento_id))
     await session.commit()
     await session.refresh(visita)
-    return visita
+    return (await _leer(session, [visita]))[0]
 
 
 @router.get(
@@ -85,7 +134,7 @@ async def listar_visitas_de_paciente(
     paciente_id: UUID, session: AsyncSession = Depends(get_session)
 ):
     resultado = await session.execute(select(Visita).where(Visita.paciente_id == paciente_id))
-    return resultado.scalars().all()
+    return await _leer(session, list(resultado.scalars().all()))
 
 
 @router.get(
@@ -95,7 +144,7 @@ async def obtener_visita(visita_id: UUID, session: AsyncSession = Depends(get_se
     visita = await session.get(Visita, visita_id)
     if visita is None:
         raise HTTPException(404, "Visita no encontrada")
-    return visita
+    return (await _leer(session, [visita]))[0]
 
 
 @router.patch(
@@ -113,11 +162,26 @@ async def actualizar_visita(
         raise HTTPException(404, "Visita no encontrada")
 
     cambios = datos.model_dump(exclude_unset=True)
+    nuevos = cambios.pop("tratamiento_ids", None)
+    actuales = (
+        await session.execute(
+            select(VisitaTratamiento.tratamiento_id).where(VisitaTratamiento.visita_id == visita.id)
+        )
+    ).scalars().all()
+    if nuevos is not None:
+        nuevos = await _tratamientos_validos(session, visita.paciente_id, nuevos)
+    tipo_final = cambios["tipo"] if "tipo" in cambios else visita.tipo
+    _exigir_tratamiento_si_corresponde(tipo_final, nuevos if nuevos is not None else list(actuales))
+
     for campo, valor in cambios.items():
         setattr(visita, campo, valor)
+    if nuevos is not None:
+        await session.execute(delete(VisitaTratamiento).where(VisitaTratamiento.visita_id == visita.id))
+        for tratamiento_id in nuevos:
+            session.add(VisitaTratamiento(visita_id=visita.id, tratamiento_id=tratamiento_id))
     visita.actualizado_en = ahora()
     visita.actualizado_por = usuario.id
 
     await session.commit()
     await session.refresh(visita)
-    return visita
+    return (await _leer(session, [visita]))[0]
