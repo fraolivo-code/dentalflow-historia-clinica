@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.db import Base
-from app.enums import EstadoHistoria
+from app.enums import Denticion, EstadoHistoria
 from app.models.common import AuditMixin, UUIDPk
 from app.services.movil import normalizar_movil
 
@@ -90,6 +90,19 @@ class Paciente(Base, UUIDPk, AuditMixin):
     aprobada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     aprobada_por: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("usuario.id"), nullable=True
+    )
+    # Odontograma mixto (migracion 0034, 15/10/2026): que dientes muestra el odontograma. Lo cambian
+    # la Dra. o Francisco; al crear la ficha se sugiere «mixta» hasta los 12 anos.
+    denticion: Mapped[Denticion] = mapped_column(
+        Enum(
+            Denticion,
+            name="denticion",
+            native_enum=True,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        ),
+        nullable=False,
+        default=Denticion.adulta,
+        server_default="adulta",
     )
 
     @property

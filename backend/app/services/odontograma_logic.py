@@ -14,6 +14,9 @@ from app.enums import (
     GRUPO_CONDICION,
     GRUPO_ENDO,
     GRUPO_EXCLUSIVE,
+    HALLAZGOS_NO_EN_DECIDUOS,
+    HALLAZGOS_SOLO_DECIDUOS,
+    NUMEROS_DIENTE_DECIDUOS,
     CondicionIndividualPuente,
     OrigenHallazgo,
     SuperficieDental,
@@ -33,6 +36,19 @@ from app.schemas.odontograma import OdontogramaHallazgoCreate, PuenteFijoDienteC
 # Grupos cuyo hallazgo describe el estado del diente entero: dentro de un
 # puente activo ese estado lo define condicion_individual (24/09/2026).
 GRUPOS_DEFINIDOS_POR_PUENTE = GRUPO_EXCLUSIVE | GRUPO_ENDO
+
+
+def validar_hallazgo_en_diente(numero_diente: int, tipo: TipoHallazgo) -> None:
+    """Odontograma mixto (15/10/2026): hay hallazgos propios de dientes deciduos y otros que no les aplican."""
+    if numero_diente in NUMEROS_DIENTE_DECIDUOS:
+        if tipo in HALLAZGOS_NO_EN_DECIDUOS:
+            raise HTTPException(
+                422,
+                f"«{tipo.value}» no aplica en un diente deciduo ({numero_diente}). "
+                "En los deciduos se registran pulpotomía o pulpectomía en lugar de conducto.",
+            )
+    elif tipo in HALLAZGOS_SOLO_DECIDUOS:
+        raise HTTPException(422, f"«{tipo.value}» solo aplica en dientes deciduos (51 a 85); el {numero_diente} es permanente.")
 
 
 def grupo_de(tipo: TipoHallazgo) -> str:
@@ -107,6 +123,7 @@ async def aplicar_hallazgo(
     commit=False (bitacora con varios dientes, 04/10/2026): no confirma ni
     cierra la transaccion; quien llama confirma todo junto o deshace todo.
     """
+    validar_hallazgo_en_diente(numero_diente, datos.tipo_hallazgo)
     duplicado = await buscar_duplicado_activo(
         session, paciente_id, numero_diente, datos.tipo_hallazgo, datos.superficie
     )

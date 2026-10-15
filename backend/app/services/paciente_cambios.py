@@ -1,6 +1,7 @@
 # app/services/paciente_cambios.py — Que campos del paciente corrige cada rol y
 # como se registra cada correccion (tabla paciente_cambio, sin retencion).
 
+import enum
 import uuid
 from datetime import date
 from typing import Any
@@ -18,6 +19,8 @@ CAMPOS_CONTACTO = frozenset({"movil", "telefono_fijo", "email", "direccion"})
 # CAMPOS_CONTACTO se trata como personal (solo acceso total), este o no aqui.
 ETIQUETAS = {
     "numero_historia": "N.° de historia",
+    "denticion": "Dentición",
+    "estado_historia": "Estado de la historia",
     "nombre_completo": "Nombre completo",
     "cedula": "Cédula",
     "cedula_representante": "Cédula del representante",
@@ -60,6 +63,8 @@ def a_texto(valor: Any) -> str | None:
         return "Sí" if valor else "No"
     if isinstance(valor, date):
         return valor.isoformat()
+    if isinstance(valor, enum.Enum):
+        return str(valor.value)
     return str(valor)
 
 

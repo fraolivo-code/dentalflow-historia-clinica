@@ -23,7 +23,7 @@ from app.models.tratamiento import Tratamiento
 from app.models.visita import Visita
 from app.schemas.odontograma import OdontogramaHallazgoCreate
 from app.services import etiquetas
-from app.services.odontograma_logic import aplicar_hallazgo
+from app.services.odontograma_logic import aplicar_hallazgo, validar_hallazgo_en_diente
 
 T = TipoHallazgo
 S = SuperficieDental
@@ -125,6 +125,8 @@ async def registrar(
     regla = REGLAS[tratamiento]
     superficies = _validar_superficies(regla, superficies)
     a_abrir = _a_abrir(regla, resultado, superficies)
+    for tipo_a_abrir, _ in a_abrir:
+        validar_hallazgo_en_diente(numero_diente, tipo_a_abrir)
 
     if visita_id is not None:
         visita = await session.get(Visita, visita_id)

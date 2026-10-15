@@ -13,12 +13,17 @@ import enum
 # Notacion FDI, dientes permanentes (seccion 1.1 de la especificacion). Se usa
 # para validar numero_diente en la capa de API con un mensaje claro, antes de
 # depender del error crudo de la FK contra diente_anatomia.
-NUMEROS_DIENTE_VALIDOS = frozenset(
+NUMEROS_DIENTE_PERMANENTES = frozenset(
     {11, 12, 13, 14, 15, 16, 17, 18}
     | {21, 22, 23, 24, 25, 26, 27, 28}
     | {31, 32, 33, 34, 35, 36, 37, 38}
     | {41, 42, 43, 44, 45, 46, 47, 48}
 )
+# Dientes deciduos (temporales o primarios), numeracion FDI 51-85 (odontograma mixto, 15/10/2026).
+NUMEROS_DIENTE_DECIDUOS = frozenset(
+    {51, 52, 53, 54, 55} | {61, 62, 63, 64, 65} | {71, 72, 73, 74, 75} | {81, 82, 83, 84, 85}
+)
+NUMEROS_DIENTE_VALIDOS = NUMEROS_DIENTE_PERMANENTES | NUMEROS_DIENTE_DECIDUOS
 
 
 class RolUsuario(str, enum.Enum):
@@ -106,18 +111,45 @@ class TipoHallazgo(str, enum.Enum):
     perno_defecto = "perno_defecto"
     sellante = "sellante"
     cambio_coloracion = "cambio_coloracion"
+    # Agregados 15/10/2026 (migracion 0034, odontograma mixto): solo dientes deciduos.
+    # Exfoliado = el diente deciduo cayo solo (exclusivo, como ausente); pulpotomia y pulpectomia
+    # son del grupo endo.
+    exfoliado = "exfoliado"
+    pulpotomia = "pulpotomia"
+    pulpectomia = "pulpectomia"
 
 
 # Grupos de exclusividad (seccion 1.2 / 3.3). Logica de aplicacion, no de la
 # base de datos.
-GRUPO_EXCLUSIVE = {TipoHallazgo.sano, TipoHallazgo.ausente, TipoHallazgo.implante}
+GRUPO_EXCLUSIVE = {TipoHallazgo.sano, TipoHallazgo.ausente, TipoHallazgo.implante, TipoHallazgo.exfoliado}
 GRUPO_ENDO = {
     TipoHallazgo.conducto_ok,
     TipoHallazgo.conducto_ok_perno,
     TipoHallazgo.conducto_defecto,
     TipoHallazgo.conducto_perno_defecto,
     TipoHallazgo.conducto_indicado,
+    TipoHallazgo.pulpotomia,
+    TipoHallazgo.pulpectomia,
 }
+# Odontograma mixto (decisiones de la Dra., 15/10/2026): hallazgos propios de dientes deciduos y
+# hallazgos que no aplican en ellos (puentes y periodontograma se bloquean aparte).
+HALLAZGOS_SOLO_DECIDUOS = frozenset(
+    {TipoHallazgo.exfoliado, TipoHallazgo.pulpotomia, TipoHallazgo.pulpectomia}
+)
+HALLAZGOS_NO_EN_DECIDUOS = frozenset(
+    {
+        TipoHallazgo.implante,
+        TipoHallazgo.carilla_ok,
+        TipoHallazgo.carilla_defecto,
+        TipoHallazgo.perno_ok,
+        TipoHallazgo.perno_defecto,
+        TipoHallazgo.conducto_ok,
+        TipoHallazgo.conducto_ok_perno,
+        TipoHallazgo.conducto_defecto,
+        TipoHallazgo.conducto_perno_defecto,
+        TipoHallazgo.conducto_indicado,
+    }
+)
 # "condicion" (23/09/2026): compatible con cualquier otro grupo, incluido
 # exclusive — no cierra nada y ningun hallazgo nuevo lo cierra.
 GRUPO_CONDICION = {
@@ -314,6 +346,13 @@ class OrigenTratamiento(str, enum.Enum):
     remitido_externo = "remitido_externo"
 
 
+class Denticion(str, enum.Enum):
+    """Que dientes muestra el odontograma del paciente; la elige la Dra. o Francisco (15/10/2026)."""
+
+    adulta = "adulta"
+    mixta = "mixta"
+
+
 class EstadoHistoria(str, enum.Enum):
     """«En carga» = historia cargada de papel que la Dra. aun no reviso; «aprobada» = oficial."""
 
@@ -341,3 +380,5 @@ class TipoObservacion(str, enum.Enum):
     clinica = "clinica"
     administrativa = "administrativa"
     otra = "otra"
+    # Agregado 15/10/2026 (migracion 0034): el paciente se remite a un especialista; no se asocia al odontograma.
+    remision = "remision"

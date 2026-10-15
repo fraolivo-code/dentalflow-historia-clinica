@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from app.enums import EstadoHistoria
+from app.enums import Denticion, EstadoHistoria
 from app.schemas.common import AuditRead
 
 
@@ -78,6 +78,8 @@ class PacienteCreate(BaseModel):
     foto: str | None = None
     seguro: str | None = None
     ultima_visita_odontologo: str | None = None
+    # Vacio -> el router sugiere «mixta» hasta los 12 anos y «adulta» desde los 13.
+    denticion: Denticion | None = None
 
     @field_validator("ultima_visita_odontologo")
     @classmethod
@@ -108,6 +110,7 @@ CAMPOS_OBLIGATORIOS = (
     "fuma",
     "medicamentos_actuales",
     "fecha_registro",
+    "denticion",
 )
 
 
@@ -142,6 +145,7 @@ class PacienteUpdate(BaseModel):
     foto: str | None = None
     seguro: str | None = None
     ultima_visita_odontologo: str | None = None
+    denticion: Denticion | None = None
 
     @field_validator("seguro")
     @classmethod
@@ -209,6 +213,7 @@ class PacienteRead(AuditRead):
     paciente_desde: int
     estado_historia: EstadoHistoria
     aprobada_en: datetime | None
+    denticion: Denticion
 
 
 class NumeroHistoriaCorreccion(BaseModel):

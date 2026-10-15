@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import ROLES_ACCESO_TOTAL, get_current_usuario, get_session, requerir_acceso_total
+from app.enums import Denticion
 from app.models.common import ahora
 from app.models.paciente import Paciente
 from app.models.paciente_cambio import PacienteCambio
@@ -90,8 +91,12 @@ async def crear_paciente(
             raise HTTPException(422, str(error))
         if int(numero_historia) in await correlativos.numeros_en_uso(session):
             raise HTTPException(409, f"Ya existe una historia con el número {numero_historia}.")
+    campos = datos.model_dump(exclude={"numero_historia", "denticion"})
+    # Dentición sugerida (15/10/2026): mixta hasta los 12 años; la Dra. o Francisco la cambian cuando quieran.
+    denticion = datos.denticion or (Denticion.mixta if _edad(datos.fecha_nacimiento, date.today()) <= 12 else Denticion.adulta)
     paciente = Paciente(
-        **datos.model_dump(exclude={"numero_historia"}),
+        **campos,
+        denticion=denticion,
         numero_historia=numero_historia,
         creado_por=usuario.id,
     )

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, field_validator
 
-from app.enums import NUMEROS_DIENTE_VALIDOS
+from app.enums import NUMEROS_DIENTE_PERMANENTES, NUMEROS_DIENTE_VALIDOS
 
 
 class AuditRead(BaseModel):
@@ -25,4 +25,17 @@ class NumeroDienteValidoMixin(BaseModel):
     def _validar_numero_diente(cls, v: int) -> int:
         if v not in NUMEROS_DIENTE_VALIDOS:
             raise ValueError(f"{v} no es un numero de diente valido (notacion FDI)")
+        return v
+
+
+class NumeroDientePermanenteMixin(BaseModel):
+    """Solo dientes permanentes: puentes y periodontograma no aplican a los deciduos (Dra., 08/10/2026)."""
+
+    @field_validator("numero_diente", check_fields=False)
+    @classmethod
+    def _validar_numero_diente_permanente(cls, v: int) -> int:
+        if v not in NUMEROS_DIENTE_PERMANENTES:
+            raise ValueError(
+                f"{v} no es un diente permanente: los dientes deciduos no llevan puentes ni periodontograma"
+            )
         return v

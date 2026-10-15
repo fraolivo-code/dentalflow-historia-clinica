@@ -12,7 +12,7 @@ from app.enums import (
     SitioPeriodontal,
     admite_furcacion,
 )
-from app.schemas.common import AuditRead, NumeroDienteValidoMixin
+from app.schemas.common import AuditRead, NumeroDientePermanenteMixin
 
 
 def _en_rango(campo: str, valor: int | None, rango: tuple[int, int]) -> int | None:
@@ -55,7 +55,7 @@ class _MedidasSitio(BaseModel):
         return _en_rango("recesion_mm", v, RANGO_RECESION_MM)
 
 
-class PeriodontogramaRegistroCreate(NumeroDienteValidoMixin, _MedidasSitio):
+class PeriodontogramaRegistroCreate(NumeroDientePermanenteMixin, _MedidasSitio):
     numero_diente: int
     sitio: SitioPeriodontal
     margen_gingival: int
@@ -111,7 +111,7 @@ class PeriodontogramaRegistroUpdate(_MedidasSitio):
         return self
 
 
-class PeriodontogramaDienteResumenCreate(NumeroDienteValidoMixin):
+class PeriodontogramaDienteResumenCreate(NumeroDientePermanenteMixin):
     numero_diente: int
     movilidad: int
     furcacion: FurcacionGlickman | None = None
@@ -201,7 +201,7 @@ class PeriodontogramaVisitaCreate(BaseModel):
         return self
 
 
-class PeriodontogramaDienteRenumerar(NumeroDienteValidoMixin):
+class PeriodontogramaDienteRenumerar(NumeroDientePermanenteMixin):
     """Correccion de un error de tipeo: el diente medido en esta visita era otro (05/10/2026)."""
 
     numero_diente: int

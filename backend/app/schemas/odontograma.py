@@ -14,7 +14,7 @@ from app.enums import (
     TratamientoRealizado,
     validar_superficie,
 )
-from app.schemas.common import AuditRead, NumeroDienteValidoMixin
+from app.schemas.common import AuditRead, NumeroDientePermanenteMixin, NumeroDienteValidoMixin
 
 
 class DienteAnatomiaRead(BaseModel):
@@ -122,7 +122,7 @@ class OdontogramaLesionApicalResolver(BaseModel):
     fecha: date
 
 
-class PuenteFijoDienteCreate(NumeroDienteValidoMixin):
+class PuenteFijoDienteCreate(NumeroDientePermanenteMixin):
     numero_diente: int
     rol: RolDientePuente
     # Enum angosto (8 valores), no TipoHallazgo completo (26): el subconjunto
