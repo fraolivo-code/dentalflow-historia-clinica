@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +10,7 @@ from app.routers.pacientes import obtener_paciente_o_404
 from app.services import odontograma_impreso as impreso
 from app.services.consultorio import membrete_consultorio
 from app.services.fechas import hoy_venezuela
-from app.services.odontograma_svg import MODO_BLANCO, MODO_COLOR, odontograma_svg
+from app.services.odontograma_svg import MODO_BLANCO, MODO_COLOR, NUMEROS_DECIDUOS, odontograma_svg
 from app.services.pdf import generar_pdf
 
 # Documentos PDF con datos del paciente: solo dra (igual que visitas,
@@ -20,10 +20,10 @@ from app.services.pdf import generar_pdf
 router = APIRouter(tags=["pdf"])
 
 
-def _odontograma_en_blanco() -> dict:
+def _odontograma_en_blanco(mixto: bool = False) -> dict:
     return {
-        "svg": odontograma_svg([], [], [], {}, MODO_BLANCO),
-        "lineas": impreso.lineas_por_diente(),
+        "svg": odontograma_svg([], [], [], {}, MODO_BLANCO, deciduos=mixto),
+        "lineas": impreso.lineas_por_diente(deciduos=mixto),
         "plan": [],
     }
 
@@ -97,11 +97,19 @@ async def pdf_formulario_ingreso(session: AsyncSession = Depends(get_session)):
 
 
 @router.get("/pdf/odontograma-blanco", dependencies=[Depends(get_current_usuario)])
-async def pdf_odontograma_blanco(session: AsyncSession = Depends(get_session)):
-    """Solo la hoja del odontograma en blanco, con espacio para nombre, N.° de historia y fecha."""
+async def pdf_odontograma_blanco(denticion: str = "adulta", session: AsyncSession = Depends(get_session)):
+    """
+    Solo la hoja del odontograma en blanco, con espacio para nombre, N.° de historia y fecha.
+    `?denticion=mixta` agrega las filas de dientes deciduos (odontograma mixto).
+    """
+    if denticion not in ("adulta", "mixta"):
+        raise HTTPException(422, "denticion debe ser «adulta» o «mixta».")
     pdf = await generar_pdf(
         "odontograma_blanco.html",
-        {"membrete": await membrete_consultorio(session), "odontograma": _odontograma_en_blanco()},
+        {
+            "membrete": await membrete_consultorio(session),
+            "odontograma": _odontograma_en_blanco(denticion == "mixta"),
+        },
     )
     return Response(
         content=pdf,
@@ -159,6 +167,8 @@ async def pdf_odontograma_actual(paciente_id: UUID, session: AsyncSession = Depe
     puentes = [(p, estado["dientes_de"][p.id]) for p in estado["puentes"] if not p.resuelto]
     leyenda = impreso.leyenda_por_diente(activos, lesiones, puentes)
     hoy = hoy_venezuela()
+    deciduos = impreso.con_deciduos(paciente.denticion, activos, lesiones)
+    hay_deciduos = bool(deciduos) or any(n in NUMEROS_DECIDUOS for n in leyenda)
 
     pdf = await generar_pdf(
         "odontograma_actual.html",
@@ -168,8 +178,8 @@ async def pdf_odontograma_actual(paciente_id: UUID, session: AsyncSession = Depe
             "borrador": paciente.estado_historia == EstadoHistoria.en_carga,
             "fecha_impresion": hoy,
             "odontograma": {
-                "svg": odontograma_svg(activos, lesiones, puentes, estado["raices"], MODO_COLOR),
-                "lineas": impreso.lineas_por_diente(leyenda),
+                "svg": odontograma_svg(activos, lesiones, puentes, estado["raices"], MODO_COLOR, deciduos=deciduos),
+                "lineas": impreso.lineas_por_diente(leyenda, deciduos=hay_deciduos),
                 "plan": await impreso.plan_de_tratamiento(session, paciente_id),
             },
         },

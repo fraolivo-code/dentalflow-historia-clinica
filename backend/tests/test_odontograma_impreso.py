@@ -356,6 +356,10 @@ async def test_odontograma_actual_plan_con_tratamientos_activos(client, h_dra, p
 
 async def test_odontograma_actual_de_paciente_sin_nada(client, h_dra):
     paciente = await _paciente(client, h_dra, "Paciente Vacio")
+    # El paciente de prueba es un nino de 5 anos: denticion mixta (20 lineas de deciduos mas).
+    html = (await client.get(f"/pacientes/{paciente['id']}/pdf/odontograma-actual", headers=h_dra)).text
+    assert paciente["denticion"] == "mixta" and html.count('<td class="num">') == 52
+    await client.patch(f"/pacientes/{paciente['id']}", headers=h_dra, json={"denticion": "adulta"})
     html = (await client.get(f"/pacientes/{paciente['id']}/pdf/odontograma-actual", headers=h_dra)).text
     assert html.count('<td class="num">') == 32
     assert all(_linea(html, n) == "" for n in (18, 16, 41))

@@ -19,6 +19,19 @@
       </tr>
       {%- endfor %}
     </table>
+    {%- if lineas.deciduo_superior %}
+    <table class="odo-lineas">
+      <tr><td colspan="5" class="texto"><strong>Dientes deciduos (temporales)</strong></td></tr>
+      {%- for i in range(lineas.deciduo_superior | length) %}
+      {%- set sup = lineas.deciduo_superior[i] %}{% set inf = lineas.deciduo_inferior[i] %}
+      <tr>
+        <td class="num">{{ sup[0] }}</td><td class="texto">{{ sup[1] }}</td>
+        <td class="hueco"></td>
+        <td class="num">{{ inf[0] }}</td><td class="texto">{{ inf[1] }}</td>
+      </tr>
+      {%- endfor %}
+    </table>
+    {%- endif %}
 
     <div class="odo-plan">
       <h3>Plan de tratamiento</h3>

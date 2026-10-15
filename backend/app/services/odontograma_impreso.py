@@ -19,7 +19,13 @@ from app.models.odontograma import (
 from app.models.tratamiento import Tratamiento, TratamientoDiente
 from app.services import etiquetas
 from app.services.odontograma_logic import orden_anatomico
-from app.services.odontograma_svg import ARCO_INFERIOR, ARCO_SUPERIOR
+from app.services.odontograma_svg import (
+    ARCO_DECIDUO_INFERIOR,
+    ARCO_DECIDUO_SUPERIOR,
+    ARCO_INFERIOR,
+    ARCO_SUPERIOR,
+    NUMEROS_DECIDUOS,
+)
 
 SEPARADOR = " · "
 ESTADOS_ACTIVOS = (EstadoTratamiento.indicado, EstadoTratamiento.en_curso)
@@ -87,21 +93,31 @@ def leyenda_por_diente(activos, lesiones_activas, puentes_activos) -> dict[int, 
     return leyenda
 
 
-def lineas_por_diente(leyenda: dict[int, list[str]] | None = None) -> dict:
+def con_deciduos(denticion, activos, lesiones_activas) -> bool | None:
+    """True si la denticion es mixta; None (automatico) si no: solo se dibujan si hay algo activo en ellos."""
+    return True if getattr(denticion, "value", denticion) == "mixta" else None
+
+
+def lineas_por_diente(leyenda: dict[int, list[str]] | None = None, deciduos: bool = False) -> dict:
     """
     Las 32 lineas de la hoja, en el orden del papel: cuadrantes 1 y 2 arriba,
     4 y 3 abajo. Cada linea: (numero, texto en gris o ""). Sin `leyenda`
-    (modo blanco) todos los textos quedan vacios.
+    (modo blanco) todos los textos quedan vacios. Con `deciduos` agrega las 20 lineas de los
+    dientes deciduos (odontograma mixto) en "deciduo_superior" y "deciduo_inferior".
     """
     leyenda = leyenda or {}
 
     def linea(n: int) -> tuple[int, str]:
         return n, SEPARADOR.join(leyenda.get(n, []))
 
-    return {
+    lineas = {
         "superior": [linea(n) for n in ARCO_SUPERIOR],
         "inferior": [linea(n) for n in ARCO_INFERIOR],
     }
+    if deciduos:
+        lineas["deciduo_superior"] = [linea(n) for n in ARCO_DECIDUO_SUPERIOR]
+        lineas["deciduo_inferior"] = [linea(n) for n in ARCO_DECIDUO_INFERIOR]
+    return lineas
 
 
 async def plan_de_tratamiento(session: AsyncSession, paciente_id: UUID) -> list[str]:

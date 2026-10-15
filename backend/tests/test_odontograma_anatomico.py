@@ -103,17 +103,32 @@ def _semilla_catalogo():
 
 
 def test_json_version_y_cantidades():
-    assert JSON["version"] == "2026-10-15.1"
-    assert len(JSON["dientes"]) == 32
-    raices = sum(len(_forma(int(n))["raices"]) for n in JSON["dientes"])
-    assert raices == 52
+    assert JSON["version"] == "2026-10-15.2"
+    # 32 permanentes + 20 deciduos (odontograma mixto, 15/10/2026)
+    assert len(JSON["dientes"]) == 52
+    permanentes = [n for n in JSON["dientes"] if int(n) < 50]
+    assert sum(len(_forma(int(n))["raices"]) for n in permanentes) == 52
 
 
 def test_nombres_de_raices_del_json_coinciden_con_el_catalogo():
     catalogo = _semilla_catalogo()
-    assert sorted(catalogo) == sorted(int(n) for n in JSON["dientes"])
+    assert sorted(catalogo) == sorted(int(n) for n in JSON["dientes"] if int(n) < 50)
     assert sum(len(v) for v in catalogo.values()) == 52
     for numero, nombres in catalogo.items():
+        assert sorted(r["nombre"] for r in _forma(numero)["raices"]) == sorted(nombres), numero
+
+
+def test_deciduos_del_json_coinciden_con_el_catalogo_de_la_migracion_0034():
+    import importlib.util
+    from pathlib import Path
+
+    ruta = Path(__file__).resolve().parent.parent / "alembic" / "versions" / "0034_denticion_mixta.py"
+    spec = importlib.util.spec_from_file_location("m0034", ruta)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    semilla = {n: nombres for n, _r, nombres in modulo._SEED}
+    assert sorted(semilla) == sorted(int(n) for n in JSON["dientes"] if int(n) >= 50)
+    for numero, nombres in semilla.items():
         assert sorted(r["nombre"] for r in _forma(numero)["raices"]) == sorted(nombres), numero
 
 

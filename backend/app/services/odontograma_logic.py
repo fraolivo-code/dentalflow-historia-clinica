@@ -348,6 +348,10 @@ def orden_anatomico(numero_diente: int) -> tuple[int, int]:
     """
     cuadrante = numero_diente // 10
     posicion = numero_diente % 10
+    if cuadrante >= 5:
+        # Dientes deciduos (51-85): despues de los permanentes del mismo arco (igual que el frontend).
+        arco = 0 if cuadrante in (5, 6) else 1
+        return (arco, 20 + (6 - posicion if cuadrante in (5, 8) else 5 + posicion))
     arco = 0 if cuadrante in (1, 2) else 1  # 0 = superior, 1 = inferior
     if cuadrante in (1, 4):
         indice = 8 - posicion

@@ -77,6 +77,8 @@ _A_BLANCO_Y_NEGRO = {
 }
 
 TIPOS_ENDO = (
+    "pulpotomia",
+    "pulpectomia",
     "conducto_ok",
     "conducto_ok_perno",
     "conducto_defecto",
@@ -125,12 +127,12 @@ def _ancho(numero: int) -> float:
     return _FORMAS[_DIENTES[str(numero)]["forma"]]["ancho"]
 
 
-def _fila(numeros: list[int]) -> tuple[list[float], float]:
+def _fila(numeros: list[int], indice_medio: int = 7) -> tuple[list[float], float]:
     """x relativo de cada diente de la arcada y el ancho total de la fila."""
     xs, x = [], 0.0
     for i, n in enumerate(numeros):
         xs.append(x)
-        x += _ancho(n) + (SEPARACION_LINEA_MEDIA if i == 7 else SEPARACION)
+        x += _ancho(n) + (SEPARACION_LINEA_MEDIA if i == indice_medio else SEPARACION)
     return xs, xs[-1] + _ancho(numeros[-1])
 
 
@@ -160,6 +162,29 @@ def _posiciones() -> dict[int, tuple[float, float, bool]]:
 
 
 POSICION = _posiciones()
+
+# Dientes deciduos (temporales o primarios, 51-85): odontograma mixto, 15/10/2026. Dos filas mas
+# pequenas entre los arcos permanentes, con la forma de su equivalente permanente (JSON) a menor escala.
+ARCO_DECIDUO_SUPERIOR = [55, 54, 53, 52, 51, 61, 62, 63, 64, 65]
+ARCO_DECIDUO_INFERIOR = [85, 84, 83, 82, 81, 71, 72, 73, 74, 75]
+NUMEROS_DECIDUOS = frozenset(ARCO_DECIDUO_SUPERIOR + ARCO_DECIDUO_INFERIOR)
+ESCALA_DECIDUOS = 0.62
+
+
+def _disposicion(con_deciduos: bool) -> dict:
+    """Origen vertical de cada fila; con deciduos, el arco inferior baja para dejarles lugar."""
+    if not con_deciduos:
+        return {"inferior": ARCO_INFERIOR_Y, "alto": VIEWBOX_HEIGHT}
+    e = ESCALA_DECIDUOS
+    y_su = ARCO_SUPERIOR_Y + _ALTO_SUPERIOR + 6 + (FILA_MOVIMIENTOS + RADIO_FLECHA) * e
+    y_li = y_su + _ALTO_SUPERIOR * e + 4 - _TOPE_INFERIOR * e
+    y_inf = y_li + (_NUMERO_Y_INF_DEBAJO + RADIO_FLECHA) * e + 10 - _TOPE_INFERIOR
+    return {
+        "deciduo_superior": y_su,
+        "deciduo_inferior": y_li,
+        "inferior": y_inf,
+        "alto": y_inf + _NUMERO_Y_INF_DEBAJO + RADIO_FLECHA + MARGEN_Y,
+    }
 
 
 # --- SVG minimo -------------------------------------------------------------------
@@ -226,7 +251,8 @@ def _estado(hallazgos, lesiones, en_puente) -> _Estado:
     # Dentro de un puente activo, el estado del diente sale de su condicion
     # individual, no de los hallazgos.
     condicion = en_puente.condicion_individual.value if en_puente else None
-    ausente = condicion == "ausente" if condicion else "ausente" in tipos
+    # Exfoliado (diente deciduo que cayo solo) se dibuja como ausente, con el rotulo EXF.
+    ausente = condicion == "ausente" if condicion else ("ausente" in tipos or "exfoliado" in tipos)
     implante = condicion == "implante" if condicion else "implante" in tipos
     if condicion:
         tipo_endo = condicion if condicion in TIPOS_ENDO else None
@@ -377,6 +403,10 @@ class _Diente:
             l = lambda dx, est: _linea(x1 + dx, y1, x2 + dx, y2, **est)  # noqa: E731
             if tipo:
                 s.append({
+                    # Deciduos (opcion B de la Dra., 15/10/2026): pulpotomia con trazo corto en la parte alta
+                    # de la raiz; pulpectomia con el conducto completo.
+                    "pulpotomia": lambda: _linea(x1, y1, x1 + (x2 - x1) * 0.4, y1 + (y2 - y1) * 0.4, **azul),
+                    "pulpectomia": lambda: l(0, azul),
                     "conducto_ok": lambda: l(0, azul),
                     "conducto_ok_perno": lambda: l(0, grueso),
                     "conducto_defecto": lambda: l(-1.5, azul) + l(1.5, rojo),
@@ -573,6 +603,8 @@ def _diente(numero: int, x: float, y0: float, hallazgos, lesiones, en_puente) ->
         extra.append(_texto(cx, y_vest(centro_corona_local) + 4, "RR", ROJO, 10, "middle"))
     if e.tiene("diente_impactado"):
         extra.append(_texto(cx, y_vest(centro_corona_local) + 4, "IMP", ROJO, 9, "middle"))
+    if e.tiene("pulpotomia") or e.tiene("pulpectomia"):
+        extra.append(_texto(cx, y_vest(c + 22), "PT" if e.tiene("pulpotomia") else "PX", AZUL, 7.5, "middle"))
     if e.tiene("spp"):
         extra.append(_texto(cx, y_vest(c + 31), "SPP", ROJO, 7.5, "middle"))
     # Sellante (SELL, azul) y cambio de coloracion (CC, marron) dentro de la corona vestibular
@@ -615,6 +647,8 @@ def _diente(numero: int, x: float, y0: float, hallazgos, lesiones, en_puente) ->
     numero_y = capa["numero_y"]
     if e.exodoncia:
         extra.append(_texto(cx - 9, numero_y, e.exodoncia, ROJO, 7.5, "end"))
+    if e.tiene("exfoliado"):
+        extra.append(_texto(cx + 9, numero_y, "EXF", AZUL, 7.5))
     if e.tiene("supernumerario"):
         extra.append(_texto(cx + 9, numero_y, "SN", ROJO, 7.5))
     if e.tiene("requiere_periodontal"):
@@ -638,11 +672,13 @@ def _circulo_puente(cx, cy, r, defecto: bool) -> str:
     return s
 
 
-def _capa_puente(dientes_puente, defecto: bool) -> str:
+def _capa_puente(dientes_puente, defecto: bool, y_inferior: float = ARCO_INFERIOR_Y) -> str:
     """Circulo sobre la corona vestibular de cada diente del puente, unidos por una barra."""
     centros = []
     for dp in dientes_puente:
         x, y0, superior = POSICION[dp.numero_diente]
+        if not superior:
+            y0 = y_inferior
         t = _Diente(dp.numero_diente)
         capa = _SUP if superior else _INF
         y_corona = y0 + _mapa_y(capa["vestibular"])((t.cervical + 100) / 2)
@@ -655,7 +691,7 @@ def _capa_puente(dientes_puente, defecto: bool) -> str:
 
 
 def odontograma_svg(
-    hallazgos, lesiones, puentes, raices_por_diente=None, modo: str = MODO_COLOR
+    hallazgos, lesiones, puentes, raices_por_diente=None, modo: str = MODO_COLOR, deciduos: bool | None = None
 ) -> Markup:
     """
     hallazgos / lesiones: activos (no resueltos). puentes: lista de
@@ -665,7 +701,12 @@ def odontograma_svg(
     modo: "color" (pantalla/historia completa), "blanco" (dientes sin
     hallazgos; ignora lo recibido) o "gris" (hallazgos activos en gris). Ver
     _A_BLANCO_Y_NEGRO.
+
+    deciduos: True dibuja las filas de dientes deciduos (dentición mixta); None = solo si algun
+    hallazgo o lesion activo es de un diente deciduo (nunca se oculta algo vigente).
     """
+    if deciduos is None:
+        deciduos = any(x.numero_diente in NUMEROS_DECIDUOS for x in (*hallazgos, *lesiones))
     if modo not in (MODO_COLOR, MODO_BLANCO, MODO_GRIS):
         raise ValueError(f"modo de odontograma desconocido: {modo}")
     if modo == MODO_BLANCO:
@@ -679,13 +720,24 @@ def odontograma_svg(
         lesiones_por_diente[l.numero_diente].append(l)
     en_puente = {dp.numero_diente: dp for _, dientes in puentes for dp in dientes}
 
+    lay = _disposicion(deciduos)
     partes = []
     for numero in ARCO_SUPERIOR + ARCO_INFERIOR:
-        x, y0, _ = POSICION[numero]
-        partes.append(_diente(numero, x, y0, por_diente[numero], lesiones_por_diente[numero],
-                              en_puente.get(numero)))
+        x, y0, superior = POSICION[numero]
+        partes.append(_diente(numero, x, y0 if superior else lay["inferior"], por_diente[numero],
+                              lesiones_por_diente[numero], en_puente.get(numero)))
+    if deciduos:
+        e = ESCALA_DECIDUOS
+        for numeros, clave in ((ARCO_DECIDUO_SUPERIOR, "deciduo_superior"), (ARCO_DECIDUO_INFERIOR, "deciduo_inferior")):
+            xs, ancho_fila = _fila(numeros, 4)
+            desplazamiento = (VIEWBOX_WIDTH / e - ancho_fila) / 2
+            dientes_fila = "".join(
+                _diente(n, desplazamiento + x, 0, por_diente[n], lesiones_por_diente[n], None)
+                for n, x in zip(numeros, xs)
+            )
+            partes.append(_g(dientes_fila, transform=f"translate(0 {_n(lay[clave])}) scale({e})"))
     for puente, dientes in puentes:
-        partes.append(_capa_puente(dientes, puente.estado_general.value == "defecto"))
+        partes.append(_capa_puente(dientes, puente.estado_general.value == "defecto", lay["inferior"]))
 
     cuerpo = "".join(partes)
     if modo != MODO_COLOR:
@@ -693,6 +745,6 @@ def odontograma_svg(
             cuerpo = cuerpo.replace(f'"{color}"', f'"{equivalente}"')
 
     return Markup(
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {_n(VIEWBOX_WIDTH)} {_n(VIEWBOX_HEIGHT)}" '
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {_n(VIEWBOX_WIDTH)} {_n(lay["alto"])}" '
         f'class="odontograma" role="img" aria-label="Odontograma">{cuerpo}</svg>'
     )

@@ -45,6 +45,7 @@ TIPO_OBSERVACION = {
     TipoObservacion.clinica: "Clínica",
     TipoObservacion.administrativa: "Administrativa",
     TipoObservacion.otra: "Otra",
+    TipoObservacion.remision: "Remisión a especialista",
 }
 
 SUPERFICIE = {
@@ -59,13 +60,13 @@ SUPERFICIE = {
 
 def etiqueta_superficie(superficie: SuperficieDental, dientes: Iterable[int] = ()) -> str:
     """
-    "palatina" en los superiores (11-28), "lingual" en los inferiores (31-48).
+    "palatina" en los superiores (11-28 y deciduos 51-65), "lingual" en los inferiores (31-48 y 71-85).
     Con varios dientes de las dos arcadas (bitacora) o sin diente, cae a
     "palatina/lingual". El resto de las superficies no depende del diente.
     """
     if superficie != SuperficieDental.palatino_lingual:
         return SUPERFICIE[superficie]
-    caras = {"palatina" if numero // 10 in (1, 2) else "lingual" for numero in dientes}
+    caras = {"palatina" if numero // 10 in (1, 2, 5, 6) else "lingual" for numero in dientes}
     return caras.pop() if len(caras) == 1 else SUPERFICIE[superficie]
 
 # Mismas etiquetas que ve la Dra. en pantalla (CATALOGO de
@@ -106,6 +107,10 @@ HALLAZGO = {
     TipoHallazgo.exodoncia_simple: "Exodoncia simple (S)",
     TipoHallazgo.exodoncia_quirurgica: "Exodoncia quirúrgica (Q)",
     TipoHallazgo.spp: "Superficie prepatogénica (SPP)",
+    # Dientes deciduos (odontograma mixto, 15/10/2026)
+    TipoHallazgo.exfoliado: "Exfoliado (EXF)",
+    TipoHallazgo.pulpotomia: "Pulpotomía (PT)",
+    TipoHallazgo.pulpectomia: "Pulpectomía (PX)",
 }
 
 

@@ -1,6 +1,6 @@
 {
- "version": "2026-10-15.1",
- "descripcion": "Dientes anatómicos aprobados por la Dra. (muestra 3). Fuente única para la pantalla y los PDF. Coordenadas locales: raíz arriba (y=0), corona abajo (y=100), mesial a la DERECHA; 'espejo' refleja horizontalmente (cuadrantes 2 y 3).",
+ "version": "2026-10-15.2",
+ "descripcion": "Dientes anatómicos aprobados por la Dra. (muestra 3). Fuente única para la pantalla y los PDF. Coordenadas locales: raíz arriba (y=0), corona abajo (y=100), mesial a la DERECHA; 'espejo' refleja horizontalmente (cuadrantes 2 y 3). v2026-10-15.2: se agregan los dientes deciduos 51-85 (odontograma mixto), dibujados con la forma de su equivalente permanente a menor escala.",
  "colores": {
   "azul": "#1565c0",
   "rojo": "#c62828",
@@ -790,6 +790,106 @@
   },
   "48": {
    "forma": "48",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "51": {
+   "forma": "11",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "52": {
+   "forma": "12",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "53": {
+   "forma": "13",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "54": {
+   "forma": "16",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "55": {
+   "forma": "17",
+   "espejo": false,
+   "arcada": "superior"
+  },
+  "61": {
+   "forma": "11",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "62": {
+   "forma": "12",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "63": {
+   "forma": "13",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "64": {
+   "forma": "16",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "65": {
+   "forma": "17",
+   "espejo": true,
+   "arcada": "superior"
+  },
+  "71": {
+   "forma": "41",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "72": {
+   "forma": "42",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "73": {
+   "forma": "43",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "74": {
+   "forma": "46",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "75": {
+   "forma": "47",
+   "espejo": true,
+   "arcada": "inferior"
+  },
+  "81": {
+   "forma": "41",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "82": {
+   "forma": "42",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "83": {
+   "forma": "43",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "84": {
+   "forma": "46",
+   "espejo": false,
+   "arcada": "inferior"
+  },
+  "85": {
+   "forma": "47",
    "espejo": false,
    "arcada": "inferior"
   }

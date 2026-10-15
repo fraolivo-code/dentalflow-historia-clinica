@@ -178,3 +178,46 @@ async def test_remision_es_una_observacion_de_la_dra_y_no_de_la_asistente(client
     assert (await client.post(f"/pacientes/{pid}/observaciones", headers=h_asistente, json=cuerpo)).status_code == 422
     r = await client.post(f"/pacientes/{pid}/observaciones", headers=h, json=cuerpo)
     assert r.status_code == 201 and r.json()["tipo"] == "remision"
+
+
+# ------------------------------------------------------------------- impresion
+
+from types import SimpleNamespace as _NS  # noqa: E402
+
+from app.services.odontograma_svg import MODO_BLANCO, MODO_COLOR, odontograma_svg  # noqa: E402
+
+
+def _hallazgo_ns(numero, tipo, superficie=None):
+    return _NS(numero_diente=numero, tipo_hallazgo=_NS(value=tipo), superficie=_NS(value=superficie) if superficie else None)
+
+
+def test_el_dibujo_agrega_las_filas_de_deciduos_solo_cuando_corresponde():
+    adulto = str(odontograma_svg([], [], [], {}, MODO_BLANCO))
+    mixto = str(odontograma_svg([], [], [], {}, MODO_BLANCO, deciduos=True))
+    assert 'data-diente="54"' not in adulto and 'data-diente="54"' in mixto
+    assert mixto.count("data-diente=") == 52
+    # automatico: aparecen si hay algo activo en un deciduo, nunca se oculta algo vigente
+    auto = str(odontograma_svg([_hallazgo_ns(54, "caries", "oclusal")], [], [], {}, MODO_COLOR))
+    assert 'data-diente="85"' in auto
+
+
+def test_pulpotomia_pulpectomia_y_exfoliado_tienen_rotulo_en_el_dibujo():
+    svg = str(odontograma_svg(
+        [_hallazgo_ns(54, "pulpotomia"), _hallazgo_ns(64, "pulpectomia"), _hallazgo_ns(53, "exfoliado")],
+        [], [], {}, MODO_COLOR,
+    ))
+    for rotulo in (">PT<", ">PX<", ">EXF<"):
+        assert rotulo in svg, rotulo
+
+
+async def test_hoja_en_blanco_mixta_trae_las_lineas_de_deciduos(client, h, monkeypatch):
+    from app.services import pdf as servicio_pdf
+
+    async def _render(plantilla, contexto):
+        return servicio_pdf._plantillas.get_template(plantilla).render(**contexto).encode("utf-8")
+
+    monkeypatch.setattr("app.routers.pdf.generar_pdf", _render)
+    adulta = (await client.get("/pdf/odontograma-blanco", headers=h)).text
+    mixta = (await client.get("/pdf/odontograma-blanco?denticion=mixta", headers=h)).text
+    assert adulta.count('<td class="num">') == 32 and mixta.count('<td class="num">') == 52
+    assert (await client.get("/pdf/odontograma-blanco?denticion=otra", headers=h)).status_code == 422

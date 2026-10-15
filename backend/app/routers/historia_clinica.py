@@ -30,7 +30,14 @@ from app.routers.pacientes import obtener_paciente_o_404
 from app.services import etiquetas
 from app.services.fechas import hoy_venezuela
 from app.services.odontograma_impreso import cargar_estado, leyenda_por_diente
-from app.services.odontograma_svg import ARCO_INFERIOR, ARCO_SUPERIOR, odontograma_svg
+from app.services.odontograma_svg import (
+    ARCO_DECIDUO_INFERIOR,
+    ARCO_DECIDUO_SUPERIOR,
+    ARCO_INFERIOR,
+    ARCO_SUPERIOR,
+    odontograma_svg,
+)
+from app.services.odontograma_impreso import con_deciduos
 from app.services.pdf import generar_pdf
 
 # Documento clinico completo: solo dra.
@@ -55,7 +62,7 @@ async def _todos(session: AsyncSession, consulta) -> list:
     return list((await session.execute(consulta)).scalars().all())
 
 
-async def _odontograma(session: AsyncSession, paciente_id: UUID) -> dict:
+async def _odontograma(session: AsyncSession, paciente_id: UUID, denticion=None) -> dict:
     """Dibujo del estado actual, leyenda por diente y lo ya resuelto."""
     estado = await cargar_estado(session, paciente_id)
     hallazgos, lesiones, puentes = estado["hallazgos"], estado["lesiones"], estado["puentes"]
@@ -86,8 +93,15 @@ async def _odontograma(session: AsyncSession, paciente_id: UUID) -> dict:
     resueltos.sort(key=lambda r: (r["fecha"], r["resuelto"] or date.max))
 
     return {
-        "svg": odontograma_svg(activos, lesiones_activas, puentes_activos, estado["raices"]),
-        "leyenda": [(n, leyenda[n]) for n in ARCO_SUPERIOR + ARCO_INFERIOR if leyenda[n]],
+        "svg": odontograma_svg(
+            activos, lesiones_activas, puentes_activos, estado["raices"],
+            deciduos=con_deciduos(denticion, activos, lesiones_activas),
+        ),
+        "leyenda": [
+            (n, leyenda[n])
+            for n in ARCO_SUPERIOR + ARCO_INFERIOR + ARCO_DECIDUO_SUPERIOR + ARCO_DECIDUO_INFERIOR
+            if leyenda[n]
+        ],
         "resueltos": resueltos,
     }
 
@@ -236,7 +250,7 @@ async def pdf_historia_completa(
         .order_by(Consentimiento.fecha, Consentimiento.creado_en),
     )
 
-    odontograma = await _odontograma(session, paciente_id)
+    odontograma = await _odontograma(session, paciente_id, paciente.denticion)
     periodontogramas = await _periodontogramas(session, paciente_id)
 
     pdf = await generar_pdf(
