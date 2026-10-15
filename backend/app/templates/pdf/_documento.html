@@ -32,6 +32,10 @@
     }
   }
   @page :first { @top-left { content: none; } }
+  {% if borrador %}
+  /* Historia en carga: todavia no la aprobo la Dra. */
+  @page { @top-right { content: "BORRADOR — pendiente de aprobación"; font-family: "Inter", sans-serif; font-size: 8.5pt; font-weight: 700; color: #b00020; vertical-align: bottom; padding-bottom: 10pt; } }
+  {% endif %}
   body { font-family: "Inter", sans-serif; font-size: 11.5pt; color: var(--texto); line-height: 1.7; margin: 0; }
 
   .membrete { border-bottom: 1.5pt solid var(--acento); padding-bottom: 10pt; margin-bottom: 44pt; }

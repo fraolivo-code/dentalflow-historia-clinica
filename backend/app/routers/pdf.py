@@ -5,6 +5,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session, requerir_acceso_total, requerir_dra
+from app.enums import EstadoHistoria
 from app.routers.pacientes import obtener_paciente_o_404
 from app.services import odontograma_impreso as impreso
 from app.services.consultorio import membrete_consultorio
@@ -164,6 +165,7 @@ async def pdf_odontograma_actual(paciente_id: UUID, session: AsyncSession = Depe
         {
             "membrete": await membrete_consultorio(session),
             "paciente": paciente,
+            "borrador": paciente.estado_historia == EstadoHistoria.en_carga,
             "fecha_impresion": hoy,
             "odontograma": {
                 "svg": odontograma_svg(activos, lesiones, puentes, estado["raices"], MODO_COLOR),

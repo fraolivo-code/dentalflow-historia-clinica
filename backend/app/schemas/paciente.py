@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from app.enums import EstadoHistoria
 from app.schemas.common import AuditRead
 
 
@@ -206,6 +207,8 @@ class PacienteRead(AuditRead):
     seguro: str | None
     ultima_visita_odontologo: str | None
     paciente_desde: int
+    estado_historia: EstadoHistoria
+    aprobada_en: datetime | None
 
 
 class NumeroHistoriaCorreccion(BaseModel):

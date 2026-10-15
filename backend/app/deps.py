@@ -7,6 +7,7 @@ from uuid import UUID
 import jwt
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session
@@ -107,6 +108,23 @@ requerir_acceso_total = requerir_rol(*ROLES_ACCESO_TOTAL)
 logger = logging.getLogger(__name__)
 
 LARGO_MINIMO_CLAVE_SERVICIO = 32
+
+
+async def requerir_profesional_vinculado(
+    usuario: Usuario = Depends(get_current_usuario),
+    session: AsyncSession = Depends(get_session),
+) -> Usuario:
+    """Solo la cuenta vinculada a un profesional (la Dra.): aprueba historias en carga."""
+    from app.models.profesional_tratante import ProfesionalTratante
+
+    if usuario.rol not in ROLES_ACCESO_TOTAL:
+        raise HTTPException(403, "No tiene permiso para esta accion.")
+    vinculado = (
+        await session.execute(select(ProfesionalTratante.id).where(ProfesionalTratante.usuario_id == usuario.id))
+    ).first()
+    if vinculado is None:
+        raise HTTPException(403, "Solo la Dra. (cuenta vinculada a su profesional) puede aprobar historias.")
+    return usuario
 
 
 async def requerir_clave_servicio(x_api_key: str | None = Header(default=None)) -> None:

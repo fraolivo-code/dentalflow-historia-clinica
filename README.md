@@ -100,3 +100,20 @@ uvicorn app.main:app --reload   # docs interactivas en /docs
 - Formas anatómicas reales (SVG) de cada diente: pendiente, fuera de
   alcance de esta etapa — por ahora la lógica de interacción usa raíces
   genéricas (1/2/3 según tipo de diente).
+
+## Borrar un paciente de prueba (procedimiento aparte)
+
+La aplicación **no** borra pacientes ni registros clínicos (a propósito). Para quitar de
+producción un paciente de **prueba** con todo lo que depende de él (visitas, bitácora,
+odontograma, exámenes, tratamientos…) existe `backend/scripts/borrar_paciente.py`. Lo ejecuta
+Francisco; la Dra. no.
+
+1. Correr el respaldo («Run now» en `dentalflow-backup-cron`) y esperar el correo «Backup OK».
+2. Ensayo (no borra nada; lista las filas que se borrarían):
+   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/borrar_paciente.py --historia 000434"`
+3. Si el ensayo es lo esperado, borrado real:
+   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/borrar_paciente.py --historia 000434 --ejecutar --confirmo 'BORRAR 000434'"`
+
+El script se niega si el nombre del paciente no contiene «prueba» (salvo `--forzar-no-prueba`),
+recorre las claves foráneas del modelo (una tabla nueva entra sola) y borra todo en una sola
+transacción. No toca usuarios, profesionales ni catálogos.

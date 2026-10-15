@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session, requerir_dra
-from app.enums import SitioPeriodontal, TipoObservacion, admite_furcacion
+from app.enums import EstadoHistoria, SitioPeriodontal, TipoObservacion, admite_furcacion
 from app.models.antecedente import Antecedente, PacienteAntecedente
 from app.models.bitacora_tratamiento import BitacoraTratamiento
 from app.models.consentimiento import Consentimiento
@@ -246,6 +246,7 @@ async def pdf_historia_completa(
             "periodontogramas": periodontogramas,
             "profesional": profesional,
             "paciente": paciente,
+            "borrador": paciente.estado_historia == EstadoHistoria.en_carga,
             "edad": _edad(paciente.fecha_nacimiento, hoy) if paciente.fecha_nacimiento else None,
             "fecha_emision": hoy,
             "antecedentes": antecedentes,

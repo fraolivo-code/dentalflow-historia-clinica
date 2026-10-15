@@ -8,6 +8,7 @@ from app.routers import (
     configuracion,
     consentimientos,
     constancias_asistencia,
+    estado_historia,
     examenes,
     historia_clinica,
     indicaciones_tratamiento,
@@ -58,6 +59,7 @@ app.include_router(profesionales_tratantes.router)
 app.include_router(tratamientos.router)
 app.include_router(bitacora.router)
 app.include_router(examenes.router)
+app.include_router(estado_historia.router)
 app.include_router(linea_de_tiempo.router)
 app.include_router(observaciones.router)
 app.include_router(pdf.router)

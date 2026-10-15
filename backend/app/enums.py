@@ -314,6 +314,13 @@ class OrigenTratamiento(str, enum.Enum):
     remitido_externo = "remitido_externo"
 
 
+class EstadoHistoria(str, enum.Enum):
+    """«En carga» = historia cargada de papel que la Dra. aun no reviso; «aprobada» = oficial."""
+
+    en_carga = "en_carga"
+    aprobada = "aprobada"
+
+
 class TipoExamen(str, enum.Enum):
     """Examen que la Dra. indica y el paciente trae (flujo de visitas, fase 3, 15/10/2026)."""
 

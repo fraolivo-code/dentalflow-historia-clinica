@@ -4,12 +4,15 @@
 # completo de la Etapa 1: se espera ampliar (antecedentes estructurados via
 # `antecedente`/`paciente_antecedente`, etc.) sin romper este esquema base.
 
-from datetime import date
+import uuid
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, Index, String, Text, text
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, String, Text, text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.db import Base
+from app.enums import EstadoHistoria
 from app.models.common import AuditMixin, UUIDPk
 from app.services.movil import normalizar_movil
 
@@ -69,6 +72,25 @@ class Paciente(Base, UUIDPk, AuditMixin):
     seguro: Mapped[str | None] = mapped_column(String(120), nullable=True)
     # Texto libre y opcional (06/10/2026), solo en el ingreso: "hace 2 anos", etc.
     ultima_visita_odontologo: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    # Historia en carga / aprobada (migracion 0033, 15/10/2026). Toda ficha nueva nace «en_carga»;
+    # solo la Dra. (cuenta vinculada a su profesional) la aprueba. Las fichas que ya existian
+    # quedaron «aprobada».
+    estado_historia: Mapped[EstadoHistoria] = mapped_column(
+        Enum(
+            EstadoHistoria,
+            name="estado_historia",
+            native_enum=True,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        ),
+        nullable=False,
+        default=EstadoHistoria.en_carga,
+        server_default="en_carga",
+    )
+    aprobada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    aprobada_por: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("usuario.id"), nullable=True
+    )
 
     @property
     def paciente_desde(self) -> int:
