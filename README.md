@@ -130,9 +130,9 @@ Paso a paso (en la terminal, dentro de la carpeta `Fase2-Historia-Clinica-App/re
 2. Comprobar que Railway está conectado: `railway status` debe mostrar el proyecto. Si pide
    iniciar sesión: `railway login`.
 3. Ensayo (no cambia nada; muestra qué historias cambiarían):
-   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/reabrir_carga.py --historia 000311 --historia 000433"`
+   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/reabrir_carga.py --historia 000317 --historia 000433"`
 4. Si las líneas mostradas son las historias correctas, aplicar (se agrega `--ejecutar`):
-   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/reabrir_carga.py --historia 000311 --historia 000433 --ejecutar"`
+   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/reabrir_carga.py --historia 000317 --historia 000433 --ejecutar"`
 5. Comprobar en la aplicación: la ficha muestra «Historia en carga» y la búsqueda «En carga».
 
 Cambiar los números de historia según corresponda; `--historia` se repite una vez por historia.
