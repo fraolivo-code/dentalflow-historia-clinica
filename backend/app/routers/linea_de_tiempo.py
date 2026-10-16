@@ -84,7 +84,13 @@ class HistoriaCompacta(BaseModel):
 
 
 @router.get("/pacientes/{paciente_id}/historia-compacta", response_model=HistoriaCompacta)
-async def obtener_historia_compacta(paciente_id: UUID, session: AsyncSession = Depends(get_session)):
+async def obtener_historia_compacta(
+    paciente_id: UUID,
+    diente: int | None = Query(default=None, description="Solo lo de este diente (numeracion FDI)"),
+    session: AsyncSession = Depends(get_session),
+):
     """La historia por dia en una linea por hecho, y el resumen «se encontro / estado» (15/10/2026)."""
+    if diente is not None and diente not in NUMEROS_DIENTE_VALIDOS:
+        raise HTTPException(400, f"{diente} no es un numero de diente valido (FDI)")
     await obtener_paciente_o_404(paciente_id, session)
-    return await historia_compacta.construir(session, paciente_id)
+    return await historia_compacta.construir(session, paciente_id, diente)

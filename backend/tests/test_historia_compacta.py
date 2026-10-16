@@ -136,3 +136,20 @@ async def test_la_bitacora_marca_las_entradas_automaticas(client, h):
     entradas = (await client.get(f"/pacientes/{pid}/bitacora", headers=h)).json()
     por_texto = {e["descripcion"][:12]: e["automatica"] for e in entradas}
     assert por_texto["Restauración"] is True and por_texto["Resina A2"] is False and por_texto["Control"] is False
+
+
+async def test_historial_de_un_diente_solo_trae_lo_suyo_por_fecha(client, h):
+    pid = await _paciente(client, h)
+    await client.post(f"/pacientes/{pid}/visitas", headers=h, json={"fecha": "2019-04-17", "tipo": "evaluacion"})
+    await client.post(f"/pacientes/{pid}/visitas", headers=h, json={"fecha": "2019-06-01", "tipo": "control_limpieza"})
+    for diente in (26, 55):
+        await _hallazgo(client, h, pid, diente, "caries", "2019-04-17", "oclusal")
+    await _realizado(client, h, pid, 26, "restauracion", "2019-04-23", superficies=["oclusal"])
+    await client.post(f"/pacientes/{pid}/bitacora", headers=h, json={"fecha": "2019-04-23", "descripcion": "Solo el 55", "dientes": [55]})
+
+    historia = (await client.get(f"/pacientes/{pid}/historia-compacta?diente=26", headers=h)).json()
+    assert [r["diente"] for r in historia["resumen"]] == [26]
+    assert [d["fecha"] for d in historia["dias"]] == ["2019-04-23", "2019-04-17"]  # el control del 01/06 no tuvo nada del 26
+    assert historia["dias"][0]["notas"] == []  # la nota era del 55
+    assert [x["diente"] for x in historia["dias"][1]["hallazgos"]] == [26]
+    assert (await client.get(f"/pacientes/{pid}/historia-compacta?diente=99", headers=h)).status_code == 400

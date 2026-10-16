@@ -40,13 +40,16 @@ def _etiqueta(h: OdontogramaHallazgo) -> str:
     return etiquetas.etiqueta_hallazgo(h.tipo_hallazgo, h.superficie, h.numero_diente)
 
 
-async def construir(session: AsyncSession, paciente_id: UUID) -> dict:
+async def construir(session: AsyncSession, paciente_id: UUID, diente: int | None = None) -> dict:
+    """Con `diente`, solo lo de ese diente (el historial de un diente, tambien por dia)."""
     eventos = await linea_de_tiempo.construir(session, paciente_id)
     hallazgos = list(
         (await session.execute(select(OdontogramaHallazgo).where(OdontogramaHallazgo.paciente_id == paciente_id)))
         .scalars()
         .all()
     )
+    if diente is not None:
+        hallazgos = [h for h in hallazgos if h.numero_diente == diente]
     por_id = {h.id: h for h in hallazgos}
     cerrados_por: dict[UUID, list[OdontogramaHallazgo]] = defaultdict(list)
     for h in hallazgos:
@@ -74,12 +77,12 @@ async def construir(session: AsyncSession, paciente_id: UUID) -> dict:
     # ------------------------------------------------------------------- por dia
     dias: dict[date, dict] = defaultdict(lambda: {"visitas": [], "hallazgos": [], "realizado": [], "quitados": [],
                                                   "notas": [], "otros": []})
-    entradas = [e for e in eventos if e["tipo"] == "bitacora"]
+    entradas = [e for e in eventos if e["tipo"] == "bitacora" and (diente is None or diente in e["dientes"])]
     for e in eventos:
         if e["tipo"] == "visita":
             tipo = e["titulo"].removeprefix("Visita").removeprefix(" — ") or None
             dias[e["fecha"]]["visitas"].append({"tipo": tipo, "motivo": e["detalle"]})
-        elif e["tipo"] in _OTROS:
+        elif e["tipo"] in _OTROS and (diente is None or diente in e["dientes"]):
             dias[e["fecha"]]["otros"].append(e["titulo"] + (f": {e['detalle']}" if e["detalle"] else ""))
 
     usadas: set[str] = set()  # entradas de bitacora ya absorbidas por una linea de «se hizo»
@@ -123,6 +126,11 @@ async def construir(session: AsyncSession, paciente_id: UUID) -> dict:
             continue
         dias[e["fecha"]]["notas"].append({"dientes": e["dientes"], "texto": e["detalle"] or ""})
 
-    bloques = [{"fecha": fecha, **datos} for fecha, datos in dias.items() if any(datos.values())]
+    # Con un diente elegido, un dia que solo tuvo una visita (sin nada de ese diente) no se muestra.
+    bloques = [
+        {"fecha": fecha, **datos}
+        for fecha, datos in dias.items()
+        if any(v for k, v in datos.items() if diente is None or k != "visitas")
+    ]
     bloques.sort(key=lambda b: b["fecha"], reverse=True)
     return {"resumen": resumen, "dias": bloques}
