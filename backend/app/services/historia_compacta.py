@@ -28,9 +28,12 @@ _OTROS = frozenset({"examen_indicado", "examen_traido", "tratamiento_inicio", "t
                     "lesion", "lesion_resuelta", "puente", "puente_desarmado"})
 
 
-def _es_entrada_automatica(texto: str, diente: int) -> bool:
+def es_entrada_automatica(texto: str, diente: int) -> bool:
     """La entrada que escribe «Tratamiento realizado» cuando la Dra. no escribe nada: «<Tratamiento>, diente N»."""
     return any(texto.startswith(f"{nombre}, diente {diente}") for nombre in _NOMBRES_REGLAS)
+
+
+_es_entrada_automatica = es_entrada_automatica  # nombre anterior
 
 
 def _etiqueta(h: OdontogramaHallazgo) -> str:

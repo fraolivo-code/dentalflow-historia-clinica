@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator, model_validator
 
 from app.enums import (
     NUMEROS_DIENTE_VALIDOS,
@@ -76,3 +76,11 @@ class BitacoraTratamientoRead(AuditRead):
     tratamiento_id: UUID | None
     tipo_hallazgo: TipoHallazgo | None
     superficie: SuperficieDental | None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def automatica(self) -> bool:
+        """La escribio «Tratamiento realizado» sola (ya se ve en «Historia por visita»); no es una nota de la Dra."""
+        from app.services.historia_compacta import es_entrada_automatica
+
+        return len(self.dientes) == 1 and es_entrada_automatica(self.descripcion, self.dientes[0])

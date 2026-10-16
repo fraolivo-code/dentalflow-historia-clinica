@@ -124,3 +124,15 @@ async def test_solo_la_dra_ve_la_historia_compacta(client, h, session_factory):
         aid = a.id
     ha = {"Authorization": f"Bearer {security.crear_access_token(aid, 'asistente')}"}
     assert (await client.get(f"/pacientes/{pid}/historia-compacta", headers=ha)).status_code == 403
+
+
+async def test_la_bitacora_marca_las_entradas_automaticas(client, h):
+    pid = await _paciente(client, h)
+    await _hallazgo(client, h, pid, 26, "caries", "2019-04-17", "oclusal")
+    await _realizado(client, h, pid, 26, "restauracion", "2019-04-23", superficies=["oclusal"])  # texto automatico
+    await _hallazgo(client, h, pid, 36, "caries", "2019-04-17", "oclusal")
+    await _realizado(client, h, pid, 36, "restauracion", "2019-04-23", superficies=["oclusal"], descripcion="Resina A2")
+    await client.post(f"/pacientes/{pid}/bitacora", headers=h, json={"fecha": "2019-05-02", "descripcion": "Control", "dientes": [26]})
+    entradas = (await client.get(f"/pacientes/{pid}/bitacora", headers=h)).json()
+    por_texto = {e["descripcion"][:12]: e["automatica"] for e in entradas}
+    assert por_texto["Restauración"] is True and por_texto["Resina A2"] is False and por_texto["Control"] is False
