@@ -136,3 +136,20 @@ Paso a paso (en la terminal, dentro de la carpeta `Fase2-Historia-Clinica-App/re
 5. Comprobar en la aplicación: la ficha muestra «Historia en carga» y la búsqueda «En carga».
 
 Cambiar los números de historia según corresponda; `--historia` se repite una vez por historia.
+
+## Enlazar a la visita lo cargado en un día (procedimiento aparte)
+
+Desde el 15/10/2026 «Tratamiento realizado» queda dentro de la visita que tenga la misma fecha. Lo que se
+cargó antes quedó suelto (sin visita) y no aparece en «Lo realizado ese día». Lo arregla Francisco con
+`backend/scripts/enlazar_visita.py`. No borra nada ni cambia fechas: solo enlaza a la visita de ese día las
+entradas de bitácora y los hallazgos de esa fecha que no tienen visita.
+
+Paso a paso (en la terminal, dentro de la carpeta `Fase2-Historia-Clinica-App/repo`):
+
+1. Debe existir **una sola visita** con esa fecha en la ficha (si no, créela con «Iniciar visita»).
+2. Correr el respaldo («Run now» en `dentalflow-backup-cron`) y esperar el correo «Backup OK».
+3. Ensayo (no cambia nada; lista lo que se enlazaría). Cambiar la historia y la fecha (AAAA-MM-DD):
+   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/enlazar_visita.py --historia 000317 --fecha 2019-04-23"`
+4. Si lo listado es lo esperado, aplicar (se agrega `--ejecutar`):
+   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/enlazar_visita.py --historia 000317 --fecha 2019-04-23 --ejecutar"`
+5. Recargar la ficha: la visita muestra «Lo realizado ese día (N)».
