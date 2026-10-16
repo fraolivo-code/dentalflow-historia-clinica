@@ -74,11 +74,6 @@ async def _tratamientos_validos(
     return ids
 
 
-def _exigir_tratamiento_si_corresponde(tipo: TipoVisita | None, ids: list[UUID]) -> None:
-    if tipo == TipoVisita.tratamiento and not ids:
-        raise HTTPException(422, "Una visita de tratamiento necesita al menos un tratamiento.")
-
-
 async def _leer(session: AsyncSession, visitas: list[Visita]) -> list[VisitaRead]:
     """VisitaRead con los tratamientos vinculados (una sola consulta)."""
     vinculos: dict[UUID, list[UUID]] = defaultdict(list)
@@ -106,7 +101,6 @@ async def crear_visita(
     _validar_visita_liviana_si_asistente(datos, usuario)
     await obtener_paciente_o_404(paciente_id, session)
     tratamiento_ids = await _tratamientos_validos(session, paciente_id, datos.tratamiento_ids)
-    _exigir_tratamiento_si_corresponde(datos.tipo, tratamiento_ids)
     # responsable = el usuario autenticado que crea la visita (dra o
     # asistente) — si en el futuro alguien distinto atiende bajo la cuenta
     # de otro usuario, este campo deja de alcanzar y hay que revisarlo.
@@ -170,8 +164,6 @@ async def actualizar_visita(
     ).scalars().all()
     if nuevos is not None:
         nuevos = await _tratamientos_validos(session, visita.paciente_id, nuevos)
-    tipo_final = cambios["tipo"] if "tipo" in cambios else visita.tipo
-    _exigir_tratamiento_si_corresponde(tipo_final, nuevos if nuevos is not None else list(actuales))
 
     for campo, valor in cambios.items():
         setattr(visita, campo, valor)

@@ -76,11 +76,12 @@ async def test_visita_sin_tipo_queda_en_null(client, h_dra):
     assert r.status_code == 201 and r.json()["tipo"] is None
 
 
-async def test_visita_de_tratamiento_exige_tratamiento(client, h_dra):
+async def test_visita_de_tratamiento_no_exige_un_tratamiento_aparte(client, h_dra):
+    # Procedimientos sueltos del odontograma (15/10/2026): una visita de tratamiento sin tratamiento vinculado.
     pid = await _paciente(client, h_dra)
     r = await _visita(client, h_dra, pid, tipo="tratamiento")
-    assert r.status_code == 422
-    assert "necesita al menos un tratamiento" in r.json()["detail"]
+    assert r.status_code == 201, r.text
+    assert (r.json()["tipo"], r.json()["tratamiento_ids"]) == ("tratamiento", [])
 
 
 async def test_visita_de_tratamiento_vincula_y_se_lee(client, h_dra):
@@ -139,13 +140,14 @@ async def test_patch_reemplaza_tratamientos_y_valida(client, h_dra):
     vid = (await _visita(client, h_dra, pid, tipo="tratamiento", tratamiento_ids=[t1])).json()["id"]
     r = await client.patch(f"/visitas/{vid}", headers=h_dra, json={"tratamiento_ids": [t2]})
     assert r.status_code == 200 and r.json()["tratamiento_ids"] == [t2]
-    # dejar una visita de tratamiento sin tratamientos no se permite
+    # una visita de tratamiento puede quedar sin tratamiento vinculado (procedimientos sueltos del odontograma)
     r = await client.patch(f"/visitas/{vid}", headers=h_dra, json={"tratamiento_ids": []})
-    assert r.status_code == 422
-    # ni cambiar a "tratamiento" una visita que no tiene ninguno
+    assert r.status_code == 200 and r.json()["tratamiento_ids"] == []
     otra = (await _visita(client, h_dra, pid, tipo="evaluacion")).json()["id"]
     r = await client.patch(f"/visitas/{otra}", headers=h_dra, json={"tipo": "tratamiento"})
-    assert r.status_code == 422
+    assert r.status_code == 200 and r.json()["tipo"] == "tratamiento"
+    r = await client.patch(f"/visitas/{vid}", headers=h_dra, json={"tratamiento_ids": [t2]})
+    assert r.status_code == 200
     # editar solo el examen no toca el vinculo
     r = await client.patch(f"/visitas/{vid}", headers=h_dra, json={"hallazgos": "sin novedad"})
     assert r.status_code == 200 and r.json()["tratamiento_ids"] == [t2]
