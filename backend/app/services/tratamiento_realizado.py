@@ -121,6 +121,7 @@ async def registrar(
     visita_id: UUID | None,
     tratamiento_id: UUID | None,
     usuario_id: UUID,
+    commit: bool = True,
 ) -> tuple[list[OdontogramaHallazgo], list[OdontogramaHallazgo], BitacoraTratamiento]:
     regla = REGLAS[tratamiento]
     superficies = _validar_superficies(regla, superficies)
@@ -230,6 +231,9 @@ async def registrar(
     await session.flush()
     session.add(BitacoraDiente(bitacora_id=entrada.id, numero_diente=numero_diente, creado_por=usuario_id))
 
+    if not commit:  # el lote confirma todo junto al final
+        await session.flush()
+        return cerrados, abiertos, entrada
     await session.commit()
     for h in abiertos + cerrados:
         await session.refresh(h)

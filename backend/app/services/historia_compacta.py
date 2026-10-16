@@ -20,7 +20,8 @@ from app.services.odontograma_logic import orden_anatomico
 from app.services.tratamiento_realizado import REGLAS
 
 # Lo que un «Tratamiento realizado» puede cerrar = lo que hay que tratar.
-POR_TRATAR = frozenset(t for regla in REGLAS.values() for t in regla.cierra)
+# («ausente» no: un diente que falta es un estado, no algo pendiente.)
+POR_TRATAR = frozenset(t for regla in REGLAS.values() for t in regla.cierra) - {TipoHallazgo.ausente}
 # Resultados de un tratamiento: solo cuentan como «lo hecho» si cerraron algo o tienen su entrada automatica.
 RESULTADOS = frozenset(t for regla in REGLAS.values() for t in regla.abre)
 _NOMBRES_REGLAS = tuple(regla.nombre for regla in REGLAS.values())
@@ -70,6 +71,8 @@ async def construir(session: AsyncSession, paciente_id: UUID, diente: int | None
         else:
             estado, fecha_estado, con = "quitado", h.resuelto_fecha, None
         resumen.append({
+            "hallazgo_id": h.id, "tipo": h.tipo_hallazgo.value,
+            "superficie": h.superficie.value if h.superficie else None,
             "diente": h.numero_diente, "hallazgo": _etiqueta(h), "fecha": h.fecha,
             "estado": estado, "fecha_estado": fecha_estado, "con": con,
         })

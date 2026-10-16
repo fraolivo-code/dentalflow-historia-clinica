@@ -207,3 +207,48 @@ async def test_la_nota_de_la_visita_se_ve_en_el_dia_y_no_en_un_diente(client, h)
     # en el historial de un diente, el dia aparece (tiene el hallazgo) y la nota de la visita tambien
     del55 = (await client.get(f"/pacientes/{pid}/historia-compacta?diente=55", headers=h)).json()
     assert del55["dias"][0]["visitas"][0]["nota"].startswith("Adaptación")
+
+
+# ------------------------------------------------------- tratamientos realizados en lote (pieza 2)
+
+
+async def test_varios_tratamientos_realizados_de_una_fecha_en_una_transaccion(client, h):
+    pid = await _paciente(client, h)
+    visita = (await client.post(f"/pacientes/{pid}/visitas", headers=h, json={"fecha": "2019-04-23", "tipo": "tratamiento"})).json()["id"]
+    for diente in (16, 26, 36):
+        await _hallazgo(client, h, pid, diente, "caries", "2019-04-17", "oclusal")
+    resumen = (await _historia(client, h, pid))["resumen"]
+    assert [(r["diente"], r["estado"], r["tipo"], r["superficie"]) for r in resumen] == [
+        (16, "pendiente", "caries", "oclusal"), (26, "pendiente", "caries", "oclusal"), (36, "pendiente", "caries", "oclusal")]
+    items = [
+        {"numero_diente": r["diente"], "tratamiento": "restauracion", "superficies": [r["superficie"]], "cierra_ids": [r["hallazgo_id"]]}
+        for r in resumen
+    ]
+    r = await client.post(f"/pacientes/{pid}/tratamientos-realizados-lote", headers=h,
+                          json={"fecha": "2019-04-23", "visita_id": visita, "items": items})
+    assert r.status_code == 201 and r.json() == {"registrados": 3}
+    historia = await _historia(client, h, pid)
+    assert [x["estado"] for x in historia["resumen"]] == ["tratado"] * 3
+    dia = next(d for d in historia["dias"] if d["fecha"] == "2019-04-23")
+    assert [x["diente"] for x in dia["realizado"]] == [16, 26, 36]
+    entradas = (await client.get(f"/pacientes/{pid}/bitacora", headers=h)).json()
+    assert {e["visita_id"] for e in entradas} == {visita}
+
+
+async def test_el_lote_de_tratamientos_es_todo_o_nada(client, h):
+    pid = await _paciente(client, h)
+    await _hallazgo(client, h, pid, 16, "caries", "2019-04-17", "oclusal")
+    items = [
+        {"numero_diente": 16, "tratamiento": "restauracion", "superficies": ["oclusal"]},
+        {"numero_diente": 55, "tratamiento": "endodoncia"},  # endodoncia no aplica en un deciduo
+    ]
+    r = await client.post(f"/pacientes/{pid}/tratamientos-realizados-lote", headers=h, json={"fecha": "2019-04-23", "items": items})
+    assert r.status_code == 422 and "diente 55" in r.json()["detail"]
+    assert [x["estado"] for x in (await _historia(client, h, pid))["resumen"]] == ["pendiente"]  # el 16 no se trato
+    assert (await client.post(f"/pacientes/{pid}/tratamientos-realizados-lote", headers=h, json={"fecha": "2019-04-23", "items": []})).status_code == 422
+
+
+async def test_un_diente_ausente_no_es_algo_pendiente_por_tratar(client, h):
+    pid = await _paciente(client, h)
+    await _hallazgo(client, h, pid, 46, "ausente", "2019-04-17")
+    assert (await _historia(client, h, pid))["resumen"] == []

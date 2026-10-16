@@ -12,6 +12,7 @@ from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.odontograma import (
     HallazgosLoteCreate,
+    TratamientoRealizadoLoteCreate,
     DienteAnatomiaRead,
     OdontogramaHallazgoCreate,
     OdontogramaHallazgoRead,
@@ -126,6 +127,43 @@ async def crear_hallazgos_en_lote(
             creados += 1
     await session.commit()
     return {"creados": creados, "omitidos": omitidos}
+
+
+@router.post("/pacientes/{paciente_id}/tratamientos-realizados-lote", status_code=201)
+async def registrar_tratamientos_realizados_en_lote(
+    paciente_id: UUID,
+    datos: TratamientoRealizadoLoteCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """
+    Varios «Tratamiento realizado» de una misma fecha (y visita) en UNA transaccion: si alguno falla no se
+    guarda ninguno y el error nombra el diente. Cada uno hace lo mismo que el registro por diente.
+    """
+    await obtener_paciente_o_404(paciente_id, session)
+    try:
+        for item in datos.items:
+            await tratamiento_realizado.registrar(
+                session,
+                paciente_id,
+                item.numero_diente,
+                tratamiento=item.tratamiento,
+                fecha=datos.fecha,
+                superficies=item.superficies,
+                resultado=item.resultado,
+                cierra_ids=item.cierra_ids,
+                descripcion=item.descripcion,
+                visita_id=datos.visita_id,
+                tratamiento_id=None,
+                usuario_id=usuario.id,
+                commit=False,
+            )
+    except HTTPException as error:
+        await session.rollback()
+        detalle = error.detail["mensaje"] if isinstance(error.detail, dict) else error.detail
+        raise HTTPException(error.status_code, f"No se guardó nada: el diente {item.numero_diente} falló. {detalle}")
+    await session.commit()
+    return {"registrados": len(datos.items)}
 
 
 @router.get("/tratamientos-realizados")

@@ -38,6 +38,9 @@ async def obtener_linea_de_tiempo(
 
 
 class FilaResumen(BaseModel):
+    hallazgo_id: UUID
+    tipo: str
+    superficie: str | None
     diente: int
     hallazgo: str
     fecha: date

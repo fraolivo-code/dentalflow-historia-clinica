@@ -110,6 +110,29 @@ class OdontogramaHallazgoRead(AuditRead):
     notas: str | None
 
 
+class TratamientoRealizadoItem(NumeroDienteValidoMixin):
+    numero_diente: int
+    tratamiento: TratamientoRealizado
+    superficies: list[SuperficieDental] = []
+    resultado: TipoHallazgo | None = None
+    cierra_ids: list[UUID] | None = None
+    descripcion: str | None = None
+
+
+class TratamientoRealizadoLoteCreate(BaseModel):
+    """Varios «Tratamiento realizado» de una misma fecha en una sola transaccion (15/10/2026)."""
+
+    fecha: date
+    visita_id: UUID | None = None
+    items: list[TratamientoRealizadoItem]
+
+    @model_validator(mode="after")
+    def _validar(self) -> "TratamientoRealizadoLoteCreate":
+        if not self.items:
+            raise ValueError("Elija al menos un tratamiento")
+        return self
+
+
 class TratamientoRealizadoRead(BaseModel):
     cerrados: list[OdontogramaHallazgoRead]
     abiertos: list[OdontogramaHallazgoRead]
