@@ -49,6 +49,7 @@ class FilaResumen(BaseModel):
 class VisitaDelDia(BaseModel):
     tipo: str | None
     motivo: str | None
+    nota: str | None = None
 
 
 class HallazgoDelDia(BaseModel):

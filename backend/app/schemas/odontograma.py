@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.enums import (
+    NUMEROS_DIENTE_VALIDOS,
     CondicionIndividualPuente,
     EstadoGeneralPuente,
     OrigenHallazgo,
@@ -42,6 +43,30 @@ class OdontogramaHallazgoCreate(NumeroDienteValidoMixin):
     @model_validator(mode="after")
     def _validar_superficie(self) -> "OdontogramaHallazgoCreate":
         validar_superficie(self.tipo_hallazgo, self.superficie)
+        return self
+
+
+class HallazgosLoteCreate(BaseModel):
+    """Un mismo hallazgo en varios dientes de una vez (15/10/2026): la primera cita de una evaluacion."""
+
+    dientes: list[int]
+    tipo_hallazgo: TipoHallazgo
+    # Una por cada superficie (caries, obturaciones, diastema las exigen); vacio si el tipo no usa superficie.
+    superficies: list[SuperficieDental] = []
+    fecha: date
+    visita_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def _validar(self) -> "HallazgosLoteCreate":
+        if not self.dientes:
+            raise ValueError("Elija al menos un diente")
+        if len(set(self.dientes)) != len(self.dientes):
+            raise ValueError("Hay dientes repetidos")
+        for numero in self.dientes:
+            if numero not in NUMEROS_DIENTE_VALIDOS:
+                raise ValueError(f"{numero} no es un numero de diente valido (notacion FDI)")
+        for superficie in self.superficies or [None]:
+            validar_superficie(self.tipo_hallazgo, superficie)
         return self
 
 

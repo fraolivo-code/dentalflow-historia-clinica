@@ -153,3 +153,57 @@ async def test_historial_de_un_diente_solo_trae_lo_suyo_por_fecha(client, h):
     assert historia["dias"][0]["notas"] == []  # la nota era del 55
     assert [x["diente"] for x in historia["dias"][1]["hallazgos"]] == [26]
     assert (await client.get(f"/pacientes/{pid}/historia-compacta?diente=99", headers=h)).status_code == 400
+
+
+# ----------------------------------------------------- hallazgos en lote y nota de la visita
+
+
+async def test_hallazgos_en_lote_marca_varios_dientes_de_una_vez_y_con_la_visita(client, h):
+    pid = await _paciente(client, h)
+    visita = (await client.post(f"/pacientes/{pid}/visitas", headers=h, json={"fecha": "2019-04-17", "tipo": "evaluacion"})).json()["id"]
+    r = await client.post(
+        f"/pacientes/{pid}/hallazgos-lote", headers=h,
+        json={"dientes": [55, 26], "tipo_hallazgo": "caries", "superficies": ["oclusal"], "fecha": "2019-04-17", "visita_id": visita},
+    )
+    assert r.status_code == 201 and r.json() == {"creados": 2, "omitidos": []}
+    activos = (await client.get(f"/pacientes/{pid}/odontograma", headers=h)).json()
+    assert sorted((a["numero_diente"], a["superficie"], a["visita_id"]) for a in activos) == [
+        (26, "oclusal", visita), (55, "oclusal", visita)]
+    # repetir no duplica: se omiten los ya activos
+    r = await client.post(
+        f"/pacientes/{pid}/hallazgos-lote", headers=h,
+        json={"dientes": [26, 16], "tipo_hallazgo": "caries", "superficies": ["oclusal"], "fecha": "2019-04-17"},
+    )
+    assert r.json() == {"creados": 1, "omitidos": ["26 (oclusal)"]}
+
+
+async def test_hallazgos_en_lote_es_todo_o_nada(client, h):
+    pid = await _paciente(client, h)  # denticion mixta, 15 anos: el 14 es permanente
+    r = await client.post(
+        f"/pacientes/{pid}/hallazgos-lote", headers=h,
+        json={"dientes": [14, 55], "tipo_hallazgo": "pulpotomia", "fecha": "2019-04-17"},  # pulpotomia solo en deciduos
+    )
+    assert r.status_code == 422 and "diente 14" in r.json()["detail"]
+    assert (await client.get(f"/pacientes/{pid}/odontograma", headers=h)).json() == []  # ni el 55 se guardo
+    # validaciones de la peticion
+    for cuerpo in (
+        {"dientes": [], "tipo_hallazgo": "sano", "fecha": "2019-04-17"},
+        {"dientes": [11, 11], "tipo_hallazgo": "sano", "fecha": "2019-04-17"},
+        {"dientes": [99], "tipo_hallazgo": "sano", "fecha": "2019-04-17"},
+        {"dientes": [11], "tipo_hallazgo": "caries", "fecha": "2019-04-17"},  # caries pide superficie
+    ):
+        assert (await client.post(f"/pacientes/{pid}/hallazgos-lote", headers=h, json=cuerpo)).status_code == 422, cuerpo
+
+
+async def test_la_nota_de_la_visita_se_ve_en_el_dia_y_no_en_un_diente(client, h):
+    pid = await _paciente(client, h)
+    await client.post(f"/pacientes/{pid}/visitas", headers=h, json={
+        "fecha": "2019-04-17", "tipo": "evaluacion", "hallazgos": "Adaptación a la consulta. Diagnóstico Profilaxis"})
+    await _hallazgo(client, h, pid, 55, "caries", "2019-04-17", "oclusal")
+    historia = await _historia(client, h, pid)
+    dia = historia["dias"][0]
+    assert dia["visitas"][0]["nota"] == "Adaptación a la consulta. Diagnóstico Profilaxis"
+    assert dia["notas"] == []
+    # en el historial de un diente, el dia aparece (tiene el hallazgo) y la nota de la visita tambien
+    del55 = (await client.get(f"/pacientes/{pid}/historia-compacta?diente=55", headers=h)).json()
+    assert del55["dias"][0]["visitas"][0]["nota"].startswith("Adaptación")

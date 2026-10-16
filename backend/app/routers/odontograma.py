@@ -11,6 +11,7 @@ from app.models.odontograma import DienteAnatomia, OdontogramaHallazgo, Odontogr
 from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.odontograma import (
+    HallazgosLoteCreate,
     DienteAnatomiaRead,
     OdontogramaHallazgoCreate,
     OdontogramaHallazgoRead,
@@ -24,7 +25,9 @@ from app.schemas.odontograma import (
 from app.services import tratamiento_realizado
 from app.services.odontograma_logic import (
     aplicar_hallazgo,
+    buscar_duplicado_activo,
     buscar_lesion_duplicada_activa,
+    orden_anatomico,
     resolver_tipo_lesion_apical,
 )
 
@@ -83,6 +86,46 @@ async def crear_hallazgo(
         raise HTTPException(400, "numero_diente del body no coincide con el de la URL")
     await obtener_paciente_o_404(paciente_id, session)
     return await aplicar_hallazgo(session, paciente_id, numero_diente, datos, usuario.id)
+
+
+@router.post("/pacientes/{paciente_id}/hallazgos-lote", status_code=201)
+async def crear_hallazgos_en_lote(
+    paciente_id: UUID,
+    datos: HallazgosLoteCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """
+    El mismo hallazgo en varios dientes (y superficies) en UNA transaccion: si algun diente falla
+    (puente activo, hallazgo que no aplica en un deciduo...) no se guarda nada y el error nombra el
+    diente. Un hallazgo identico y ya activo se omite sin error. Respeta las reglas de exclusividad.
+    """
+    await obtener_paciente_o_404(paciente_id, session)
+    creados, omitidos = 0, []
+    for numero in sorted(datos.dientes, key=orden_anatomico):
+        for superficie in datos.superficies or [None]:
+            if await buscar_duplicado_activo(session, paciente_id, numero, datos.tipo_hallazgo, superficie):
+                omitidos.append(f"{numero}{f' ({superficie.value})' if superficie else ''}")
+                continue
+            try:
+                await aplicar_hallazgo(
+                    session,
+                    paciente_id,
+                    numero,
+                    OdontogramaHallazgoCreate(
+                        numero_diente=numero, visita_id=datos.visita_id, tipo_hallazgo=datos.tipo_hallazgo,
+                        superficie=superficie, fecha=datos.fecha,
+                    ),
+                    usuario.id,
+                    commit=False,
+                )
+            except HTTPException as error:
+                await session.rollback()
+                detalle = error.detail["mensaje"] if isinstance(error.detail, dict) else error.detail
+                raise HTTPException(error.status_code, f"No se guardó nada: el diente {numero} falló. {detalle}")
+            creados += 1
+    await session.commit()
+    return {"creados": creados, "omitidos": omitidos}
 
 
 @router.get("/tratamientos-realizados")

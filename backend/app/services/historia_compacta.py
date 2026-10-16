@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.enums import TipoHallazgo
 from app.models.odontograma import OdontogramaHallazgo
+from app.models.visita import Visita
 from app.services import etiquetas, linea_de_tiempo
 from app.services.odontograma_logic import orden_anatomico
 from app.services.tratamiento_realizado import REGLAS
@@ -78,10 +79,17 @@ async def construir(session: AsyncSession, paciente_id: UUID, diente: int | None
     dias: dict[date, dict] = defaultdict(lambda: {"visitas": [], "hallazgos": [], "realizado": [], "quitados": [],
                                                   "notas": [], "otros": []})
     entradas = [e for e in eventos if e["tipo"] == "bitacora" and (diente is None or diente in e["dientes"])]
+    # La nota de la visita es el texto libre «hallazgos» del examen: pertenece a la visita, no a un diente.
+    notas_de_visita = {
+        f"visita:{v.id}": (v.hallazgos or "").strip()
+        for v in (await session.execute(select(Visita).where(Visita.paciente_id == paciente_id))).scalars()
+    }
     for e in eventos:
         if e["tipo"] == "visita":
             tipo = e["titulo"].removeprefix("Visita").removeprefix(" — ") or None
-            dias[e["fecha"]]["visitas"].append({"tipo": tipo, "motivo": e["detalle"]})
+            dias[e["fecha"]]["visitas"].append(
+                {"tipo": tipo, "motivo": e["detalle"], "nota": notas_de_visita.get(e["id"]) or None}
+            )
         elif e["tipo"] in _OTROS and (diente is None or diente in e["dientes"]):
             dias[e["fecha"]]["otros"].append(e["titulo"] + (f": {e['detalle']}" if e["detalle"] else ""))
 
