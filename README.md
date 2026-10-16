@@ -153,3 +153,20 @@ Paso a paso (en la terminal, dentro de la carpeta `Fase2-Historia-Clinica-App/re
 4. Si lo listado es lo esperado, aplicar (se agrega `--ejecutar`):
    `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/enlazar_visita.py --historia 000317 --fecha 2019-04-23 --ejecutar"`
 5. Recargar la ficha: la visita muestra «Lo realizado ese día (N)».
+
+## Eliminar una entrada de bitácora (procedimiento aparte)
+
+La ficha ya no tiene la sección «Bitácora» general. Si una nota quedó pegada a un diente y era de toda la
+visita (por ejemplo, «Adaptación a la consulta»), la nota de la visita se escribe en la visita («Nota de la
+visita») y la entrada vieja la quita Francisco con `backend/scripts/eliminar_entrada_bitacora.py`. Solo borra
+esa entrada y sus dientes: **no toca los hallazgos del odontograma**. Solo en historias «en carga».
+
+Paso a paso (en la terminal, dentro de la carpeta `Fase2-Historia-Clinica-App/repo`):
+
+1. Escribir antes la nota en la visita («Editar» en la visita → «Nota de la visita»).
+2. Correr el respaldo («Run now» en `dentalflow-backup-cron`) y esperar el correo «Backup OK».
+3. Ensayo (no borra nada; muestra la entrada que se eliminaría). Cambiar historia, fecha (AAAA-MM-DD) y diente:
+   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/eliminar_entrada_bitacora.py --historia 000334 --fecha 2019-04-17 --diente 55"`
+4. Si es la entrada correcta, eliminar (se agrega `--ejecutar`):
+   `railway ssh --service dentalflow-historia-clinica-api -- "python scripts/eliminar_entrada_bitacora.py --historia 000334 --fecha 2019-04-17 --diente 55 --ejecutar"`
+5. Recargar la ficha: la nota ya no aparece como «Nota (diente 55)» y sí como «Nota de la visita».
