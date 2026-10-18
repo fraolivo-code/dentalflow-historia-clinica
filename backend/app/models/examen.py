@@ -40,3 +40,5 @@ class ExamenSolicitado(Base, UUIDPk, AuditMixin):
     )
     fecha_traido: Mapped[date | None] = mapped_column(Date, nullable=True)
     hallazgos: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Enlace al archivo (Drive de la Dra.); la app no guarda la imagen.
+    enlace: Mapped[str | None] = mapped_column(String(1000), nullable=True)

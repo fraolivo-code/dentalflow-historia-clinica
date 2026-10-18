@@ -20,6 +20,15 @@ class ExamenCreate(BaseModel):
     fecha_indicacion: date
     visita_id: UUID | None = None
     tratamiento_id: UUID | None = None
+    enlace: str | None = None
+
+    @field_validator("enlace")
+    @classmethod
+    def _enlace_limpio(cls, v: str | None) -> str | None:
+        v = _limpio(v)
+        if v is not None and len(v) > 1000:
+            raise ValueError("El enlace no puede superar 1000 caracteres")
+        return v
 
     @field_validator("descripcion")
     @classmethod
@@ -45,8 +54,9 @@ class ExamenUpdate(BaseModel):
 
     descripcion: str | None = None
     hallazgos: str | None = None
+    enlace: str | None = None
 
-    @field_validator("descripcion", "hallazgos")
+    @field_validator("descripcion", "hallazgos", "enlace")
     @classmethod
     def _limpio(cls, v: str | None) -> str | None:
         return _limpio(v)
@@ -65,3 +75,4 @@ class ExamenRead(AuditRead):
     estado: EstadoExamen
     fecha_traido: date | None
     hallazgos: str | None
+    enlace: str | None

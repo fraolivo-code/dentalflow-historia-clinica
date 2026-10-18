@@ -23,6 +23,7 @@ from app.models.paciente import Paciente
 from app.models.paciente_cambio import PacienteCambio
 from app.models.periodontograma import PeriodontogramaDienteResumen, PeriodontogramaRegistro
 from app.models.profesional_tratante import ProfesionalTratante
+from app.models.recordatorio import Recordatorio
 from app.models.receta import Medicamento, Receta, RecetaMedicamento
 from app.models.token_recuperacion import TokenRecuperacion
 from app.models.tratamiento import Tratamiento, TratamientoDiente
@@ -54,6 +55,7 @@ __all__ = [
     "PlantillaIndicacion",
     "ProfesionalTratante",
     "Receta",
+    "Recordatorio",
     "RecetaMedicamento",
     "TokenRecuperacion",
     "Tratamiento",

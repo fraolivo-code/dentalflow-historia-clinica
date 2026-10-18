@@ -111,6 +111,9 @@ CAMPOS_OBLIGATORIOS = (
     "medicamentos_actuales",
     "fecha_registro",
     "denticion",
+    "alerta",
+    "seguimiento_periodontal",
+    "activo",
 )
 
 
@@ -146,6 +149,20 @@ class PacienteUpdate(BaseModel):
     seguro: str | None = None
     ultima_visita_odontologo: str | None = None
     denticion: Denticion | None = None
+    alerta: bool | None = None
+    alerta_texto: str | None = None
+    seguimiento_periodontal: bool | None = None
+    seguimiento_periodontal_texto: str | None = None
+    activo: bool | None = None
+    motivo_inactivo: str | None = None
+
+    @field_validator("alerta_texto", "seguimiento_periodontal_texto", "motivo_inactivo")
+    @classmethod
+    def _texto_libre_limpio(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        return v or None
 
     @field_validator("seguro")
     @classmethod
@@ -214,6 +231,12 @@ class PacienteRead(AuditRead):
     estado_historia: EstadoHistoria
     aprobada_en: datetime | None
     denticion: Denticion
+    alerta: bool
+    alerta_texto: str | None
+    seguimiento_periodontal: bool
+    seguimiento_periodontal_texto: str | None
+    activo: bool
+    motivo_inactivo: str | None
 
 
 class NumeroHistoriaCorreccion(BaseModel):

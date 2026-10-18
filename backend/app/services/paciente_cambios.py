@@ -43,6 +43,12 @@ ETIQUETAS = {
     "foto": "Foto",
     "seguro": "Seguro",
     "ultima_visita_odontologo": "Última visita al odontólogo",
+    "alerta": "Alerta médica",
+    "alerta_texto": "Detalle de la alerta",
+    "seguimiento_periodontal": "Seguimiento periodontal",
+    "seguimiento_periodontal_texto": "Diagnóstico periodontal",
+    "activo": "Paciente activo",
+    "motivo_inactivo": "Motivo de baja",
     "periodontograma_eliminado": "Periodontograma eliminado",
 }
 

@@ -49,6 +49,7 @@ class TipoVisita(str, enum.Enum):
     tratamiento = "tratamiento"
     control_limpieza = "control_limpieza"
     emergencia = "emergencia"
+    reevaluacion = "reevaluacion"
     otra = "otra"
 
 

@@ -7,7 +7,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, String, Text, text
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, String, Text, false, text, true
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
@@ -104,6 +104,19 @@ class Paciente(Base, UUIDPk, AuditMixin):
         default=Denticion.adulta,
         server_default="adulta",
     )
+
+    # Migracion 0035 (17/10/2026). La Dra. decide a criterio propio que paciente requiere alerta
+    # (marcapasos, anticoagulantes, alergias...) y escribe de que se trata; se ve sin abrir la historia.
+    alerta: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
+    alerta_texto: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Solo con diagnostico periodontal: decide si se ofrece el periodontograma.
+    seguimiento_periodontal: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    seguimiento_periodontal_texto: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Baja explicita (cambio de odontologo, etc.); sin ella siempre se le recuerda su control.
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
+    motivo_inactivo: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     @property
     def paciente_desde(self) -> int:
