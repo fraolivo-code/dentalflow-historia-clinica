@@ -64,6 +64,14 @@ def etiqueta_superficie(superficie: SuperficieDental, dientes: Iterable[int] = (
     Con varios dientes de las dos arcadas (bitacora) o sin diente, cae a
     "palatina/lingual". El resto de las superficies no depende del diente.
     """
+    if superficie == SuperficieDental.oclusal:
+        # Anteriores (de canino a canino: 13-23, 33-43, 53-63, 73-83) se nombra «incisal»; posteriores, «oclusal».
+        anteriores = {numero % 10 <= 3 for numero in dientes}
+        if anteriores == {True}:
+            return "incisal"
+        if anteriores == {True, False}:
+            return "oclusal / incisal"
+        return SUPERFICIE[superficie]
     if superficie != SuperficieDental.palatino_lingual:
         return SUPERFICIE[superficie]
     caras = {"palatina" if numero // 10 in (1, 2, 5, 6) else "lingual" for numero in dientes}
@@ -98,11 +106,12 @@ HALLAZGO = {
     TipoHallazgo.movimiento_rotacion: "Rotación",
     TipoHallazgo.diastema: "Diastema",
     TipoHallazgo.supernumerario: "Diente supernumerario (SN)",
-    TipoHallazgo.requiere_periodontal: "Requiere tratamiento periodontal (PER)",
+    TipoHallazgo.requiere_periodontal: "Periodontitis (PER)",
+    TipoHallazgo.gingivitis: "Gingivitis (GING)",
     TipoHallazgo.perno_ok: "Perno en buen estado",
     TipoHallazgo.perno_defecto: "Perno con defecto",
-    TipoHallazgo.sellante: "Sellante aplicado (SELL)",
-    TipoHallazgo.cambio_coloracion: "Cambio de coloración (CC)",
+    TipoHallazgo.sellante: "SELL Aplicado",
+    TipoHallazgo.cambio_coloracion: "CC (cambio de coloración)",
     TipoHallazgo.resto_radicular: "Resto radicular (RR)",
     TipoHallazgo.exodoncia_simple: "Exodoncia simple (S)",
     TipoHallazgo.exodoncia_quirurgica: "Exodoncia quirúrgica (Q)",

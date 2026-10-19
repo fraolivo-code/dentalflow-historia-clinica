@@ -118,6 +118,8 @@ class TipoHallazgo(str, enum.Enum):
     exfoliado = "exfoliado"
     pulpotomia = "pulpotomia"
     pulpectomia = "pulpectomia"
+    # Agregado 18/10/2026 (migracion 0036). Grupo "condicion" (seccion Periodontales); se dibuja "GING".
+    gingivitis = "gingivitis"
 
 
 # Grupos de exclusividad (seccion 1.2 / 3.3). Logica de aplicacion, no de la
@@ -157,6 +159,7 @@ GRUPO_CONDICION = {
     TipoHallazgo.diastema,
     TipoHallazgo.supernumerario,
     TipoHallazgo.requiere_periodontal,
+    TipoHallazgo.gingivitis,
     TipoHallazgo.sellante,
     TipoHallazgo.cambio_coloracion,
 }

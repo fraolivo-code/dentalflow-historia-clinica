@@ -77,7 +77,7 @@ async def test_el_caso_de_la_paciente_diagnostico_y_resinas(client, h):
     assert tratamiento["hallazgos"] == []  # lo hecho no se repite como «hallazgo»
     hechos = {x["diente"]: x for x in tratamiento["realizado"]}
     assert hechos[26]["antes"] == ["Caries (oclusal)"] and hechos[26]["despues"] == ["Obturación en buen estado (oclusal)"]
-    assert hechos[55]["despues"] == ["Sellante aplicado (SELL)"]
+    assert hechos[55]["despues"] == ["SELL Aplicado"]
     assert tratamiento["notas"] == []  # las entradas automaticas de bitacora no se duplican
 
     assert [(r["diente"], r["estado"], r["fecha_estado"]) for r in historia["resumen"]] == [

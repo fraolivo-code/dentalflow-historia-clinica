@@ -39,6 +39,8 @@ class OdontogramaHallazgoCreate(NumeroDienteValidoMixin):
     # forma parte. None cuando se crea directo desde la pantalla del
     # odontograma sin pasar por un tratamiento.
     tratamiento_id: UUID | None = None
+    # Solo para «implante»: rehabilitado (con corona) o no rehabilitado (solo el tornillo).
+    rehabilitado: bool = True
 
     @model_validator(mode="after")
     def _validar_superficie(self) -> "OdontogramaHallazgoCreate":
@@ -108,6 +110,7 @@ class OdontogramaHallazgoRead(AuditRead):
     origen: OrigenHallazgo
     tratamiento_id: UUID | None
     notas: str | None
+    rehabilitado: bool
 
 
 class TratamientoRealizadoItem(NumeroDienteValidoMixin):

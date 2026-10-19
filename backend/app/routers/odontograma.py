@@ -1,7 +1,8 @@
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_usuario, get_session, requerir_dra
@@ -57,16 +58,26 @@ async def obtener_anatomia_diente(numero_diente: int, session: AsyncSession = De
 
 @router.get("/pacientes/{paciente_id}/odontograma", response_model=list[OdontogramaHallazgoRead])
 async def obtener_odontograma_actual(
-    paciente_id: UUID, session: AsyncSession = Depends(get_session)
+    paciente_id: UUID,
+    al: date | None = None,
+    session: AsyncSession = Depends(get_session),
 ):
-    """Hallazgos actualmente activos (no resueltos) del odontograma del paciente (3.1)."""
+    """
+    Hallazgos actualmente activos (no resueltos) del odontograma del paciente (3.1).
+    Con `al` (fecha de una evaluacion o reevaluacion), el odontograma tal como estaba ese dia: lo marcado
+    hasta esa fecha que todavia no estaba resuelto ese dia. Nada se guarda aparte: sale de las fechas
+    de cada hallazgo (marcado y resuelto).
+    """
     await obtener_paciente_o_404(paciente_id, session)
-    resultado = await session.execute(
-        select(OdontogramaHallazgo).where(
-            OdontogramaHallazgo.paciente_id == paciente_id,
-            OdontogramaHallazgo.resuelto.is_(False),
-        )
-    )
+    condiciones = [OdontogramaHallazgo.paciente_id == paciente_id]
+    if al is None:
+        condiciones.append(OdontogramaHallazgo.resuelto.is_(False))
+    else:
+        condiciones += [
+            OdontogramaHallazgo.fecha <= al,
+            or_(OdontogramaHallazgo.resuelto.is_(False), OdontogramaHallazgo.resuelto_fecha > al),
+        ]
+    resultado = await session.execute(select(OdontogramaHallazgo).where(*condiciones))
     return resultado.scalars().all()
 
 

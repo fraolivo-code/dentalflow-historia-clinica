@@ -13,6 +13,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    true,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -91,6 +92,9 @@ class OdontogramaHallazgo(Base, UUIDPk, AuditMixin):
         UUID(as_uuid=True), ForeignKey("tratamiento.id"), nullable=True, index=True
     )
     notas: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Migracion 0036 (18/10/2026). Solo importa en «implante»: True = rehabilitado (tornillo + corona),
+    # False = no rehabilitado (solo el tornillo). Los implantes que ya existian quedan rehabilitados.
+    rehabilitado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
 
 
 class OdontogramaLesionApical(Base, UUIDPk, AuditMixin):

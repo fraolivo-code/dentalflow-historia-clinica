@@ -191,6 +191,7 @@ async def aplicar_hallazgo(
         origen=OrigenHallazgo.aqui,
         tratamiento_id=datos.tratamiento_id,
         notas=datos.notas,
+        rehabilitado=datos.rehabilitado,
         creado_por=creado_por,
     )
     session.add(nuevo)
@@ -233,7 +234,8 @@ async def cerrar_lesiones_por_hallazgo(
     en la misma transaccion que el hallazgo nuevo:
     - "ausente" cierra todas las lesiones activas del diente (periapicales y
       periimplantitis: ya no hay ni raiz ni implante).
-    - "implante" cierra las periapicales (el diente ya no tiene raiz natural).
+    - "implante" ya NO cierra las periapicales (18/10/2026, pedido de la Dra.): la lesion apical y la
+      periimplantitis son independientes; ninguna sustituye a la otra.
     - Si el hallazgo nuevo cierra un "implante" activo (por exclusividad),
       se cierra tambien la periimplantitis.
     Ningun otro hallazgo toca las lesiones — "sano" o un endo no las cierran.
@@ -241,8 +243,6 @@ async def cerrar_lesiones_por_hallazgo(
     tipos_a_cerrar: set[TipoLesionApical] = set()
     if nuevo.tipo_hallazgo == TipoHallazgo.ausente:
         tipos_a_cerrar = {TipoLesionApical.periapical, TipoLesionApical.periimplantitis}
-    elif nuevo.tipo_hallazgo == TipoHallazgo.implante:
-        tipos_a_cerrar = {TipoLesionApical.periapical}
     if cierra_implante:
         tipos_a_cerrar.add(TipoLesionApical.periimplantitis)
     if not tipos_a_cerrar:
@@ -299,11 +299,10 @@ async def resolver_tipo_lesion_apical(
     )
     es_implante = tiene_implante.scalar_one_or_none() is not None
 
-    if es_implante:
-        if raiz != "Periimplantitis":
-            raise HTTPException(
-                400, "El diente tiene implante activo: raiz debe ser 'Periimplantitis'"
-            )
+    if raiz == "Periimplantitis":
+        # Periimplantitis solo en un diente con implante activo; la lesion apical por raiz sigue disponible.
+        if not es_implante:
+            raise HTTPException(400, "Periimplantitis solo se marca en un diente con implante activo")
         return TipoLesionApical.periimplantitis
 
     anatomia = await session.get(DienteAnatomia, numero_diente)

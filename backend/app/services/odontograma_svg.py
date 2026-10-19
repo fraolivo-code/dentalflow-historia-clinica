@@ -241,6 +241,7 @@ class _Estado:
     diastemas: list         # superficies ("mesial" | "distal")
     lesiones: list
     en_puente: object = None
+    rehabilitado: bool = True   # implante: con corona (True) o solo el tornillo (False)
 
     def tiene(self, tipo: str) -> bool:
         return tipo in self.tipos
@@ -276,6 +277,10 @@ def _estado(hallazgos, lesiones, en_puente) -> _Estado:
         diastemas=[h.superficie.value for h in hallazgos if h.tipo_hallazgo.value == "diastema" and h.superficie],
         lesiones=lesiones,
         en_puente=en_puente,
+        # Dentro de un puente, el implante se dibuja completo; fuera, segun el hallazgo.
+        rehabilitado=bool(condicion) or not any(
+            h.tipo_hallazgo.value == "implante" and getattr(h, "rehabilitado", True) is False for h in hallazgos
+        ),
     )
 
 
@@ -433,18 +438,20 @@ class _Diente:
 
         d = []
         resto = e.tiene("resto_radicular")
+        sin_corona = e.implante and not e.rehabilitado   # implante no rehabilitado: solo el tornillo
         if self.forma["raiz_palatina_punteada"] and not e.implante:
             d.append(_el("path", d=self.forma["raiz_palatina_punteada"], fill="none", stroke=RAIZ_PUNTEADA,
                          stroke_width=1, stroke_dasharray="2 2"))
         if not e.implante:
             d.append(_el("path", d=contorno, fill=RAIZ))
-        if not resto:
+        if not resto and not sin_corona:
             d.append(_g(_rect(-10, c, w + 20, 130 - c, fill=CORONA), clip_path=f"url(#{self.id_contorno})"))
-        d.append(self._rellenos(e, "vestibular"))
-        d.append(_g(_linea(-10, c, w + 10, c, stroke=CERVICAL, stroke_width=1), clip_path=f"url(#{self.id_contorno})"))
+        if not sin_corona:
+            d.append(self._rellenos(e, "vestibular"))
+            d.append(_g(_linea(-10, c, w + 10, c, stroke=CERVICAL, stroke_width=1), clip_path=f"url(#{self.id_contorno})"))
 
         # Carilla: banda azul sobre la cara vestibular de la corona (+ linea roja si tiene defecto).
-        if e.tiene("carilla_ok") or e.tiene("carilla_defecto"):
+        if not sin_corona and (e.tiene("carilla_ok") or e.tiene("carilla_defecto")):
             banda = _rect(-6, c + 27, w + 12, 8, fill=AZUL)
             if e.tiene("carilla_defecto"):
                 banda += _linea(-6, c + 36.5, w + 6, c + 36.5, stroke=ROJO, stroke_width=1.5)
@@ -464,6 +471,8 @@ class _Diente:
                         clip_path=f"url(#{self.id_raiz})"))
             d.append(_g(_el("path", d=contorno, fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4,
                             stroke_dasharray="3 2"), clip_path=f"url(#{self.id_corona})"))
+        elif sin_corona:
+            pass   # solo el tornillo
         elif e.implante:
             # Sin raices: solo la corona (y su borde cervical).
             d.append(_g(_el("path", d=contorno, fill="none", stroke=TRAZO, stroke_width=1.1),
@@ -472,7 +481,8 @@ class _Diente:
                         clip_path=f"url(#{self.id_contorno})"))
         else:
             d.append(_el("path", d=contorno, fill="none", stroke=TRAZO, stroke_width=1.1))
-        d.append(self._contorno_corona(e, "vestibular"))
+        if not sin_corona:
+            d.append(self._contorno_corona(e, "vestibular"))
 
         # Abfraccion: cuna roja en la zona cervical, junto a la linea cervical.
         if e.tiene("afraccion"):
@@ -497,6 +507,9 @@ class _Diente:
         contorno = self.contorno
         if e.ausente:
             return _el("path", d=contorno, fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4, stroke_dasharray="3 2")
+        if e.implante and not e.rehabilitado:
+            return _g(_el("path", d=contorno, fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4, stroke_dasharray="3 2"),
+                      clip_path=f"url(#{self.id_corona})")
         resto = e.tiene("resto_radicular")
         d = []
         if not e.implante:
@@ -521,6 +534,9 @@ class _Diente:
     def vista_oclusal(self, e: _Estado) -> str:
         o = self.oclusal
         if e.ausente:
+            return _el("path", d=o["contorno"], fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4,
+                       stroke_dasharray="3 2")
+        if e.implante and not e.rehabilitado:
             return _el("path", d=o["contorno"], fill="none", stroke=RAIZ_PUNTEADA, stroke_width=1.4,
                        stroke_dasharray="3 2")
         d = [_el("path", d=o["contorno"], fill=CORONA)]
@@ -651,6 +667,9 @@ def _diente(numero: int, x: float, y0: float, hallazgos, lesiones, en_puente) ->
         extra.append(_texto(cx + 9, numero_y, "EXF", AZUL, 7.5))
     if e.tiene("supernumerario"):
         extra.append(_texto(cx + 9, numero_y, "SN", ROJO, 7.5))
+    if e.tiene("gingivitis"):
+        # A la izquierda del numero; mas afuera si el diente lleva el rotulo de exodoncia.
+        extra.append(_texto(cx - (24 if e.exodoncia else 9), numero_y, "GING", NARANJA, 7.5, "end"))
     if e.tiene("requiere_periodontal"):
         # Detras de "SN" si el diente tambien lo lleva.
         dx = 22 if e.tiene("supernumerario") else 9
