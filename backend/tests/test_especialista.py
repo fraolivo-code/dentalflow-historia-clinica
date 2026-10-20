@@ -495,3 +495,48 @@ async def test_retirado_el_acceso_no_receta_ni_descarga(client, h_dra, h_cirujan
 async def test_catalogo_de_medicamentos_para_el_especialista(client, h_cirujano, h_asistente):
     assert (await client.get("/especialista/medicamentos", headers=h_cirujano)).status_code == 200
     assert (await client.get("/especialista/medicamentos", headers=h_asistente)).status_code == 403
+
+
+# ============================== aviso por correo al remitir ==============================
+
+async def test_al_remitir_se_avisa_al_especialista_sin_datos_del_paciente(client, h_dra, cuentas, monkeypatch):
+    enviados = []
+
+    async def _falso(para):
+        enviados.append(para)
+        return True
+
+    monkeypatch.setattr("app.routers.remisiones.enviar_aviso_remision", _falso)
+    pid = await _paciente(client, h_dra)
+    r = await _remitir(client, h_dra, pid, cuentas)
+    assert r.status_code == 201 and r.json()["aviso_correo"] is True
+    assert enviados == ["cirujano@e.com"]
+    # los listados no repiten el aviso
+    assert (await client.get(f"/pacientes/{pid}/remisiones", headers=h_dra)).json()[0]["aviso_correo"] is None
+
+
+async def test_si_el_correo_falla_la_remision_se_crea_igual(client, h_dra, h_cirujano, cuentas, monkeypatch):
+    async def _falla(para):
+        return False
+
+    monkeypatch.setattr("app.routers.remisiones.enviar_aviso_remision", _falla)
+    pid = await _paciente(client, h_dra)
+    r = await _remitir(client, h_dra, pid, cuentas)
+    assert r.status_code == 201 and r.json()["aviso_correo"] is False
+    assert (await client.get(f"/especialista/pacientes/{pid}/ficha", headers=h_cirujano)).status_code == 200
+
+
+async def test_el_texto_del_aviso_no_lleva_datos_clinicos(monkeypatch):
+    from app.services import correo
+
+    capturado = {}
+
+    async def _enviar(para, asunto, texto, que):
+        capturado.update(para=para, asunto=asunto, texto=texto)
+        return True
+
+    monkeypatch.setattr(correo, "_enviar", _enviar)
+    monkeypatch.setenv("FRONTEND_URL", "https://app.ejemplo.com/")
+    assert await correo.enviar_aviso_remision("dr@e.com") is True
+    assert "https://app.ejemplo.com" in capturado["texto"] and "Mis pacientes" in capturado["texto"]
+    assert "paciente" in capturado["texto"].lower()

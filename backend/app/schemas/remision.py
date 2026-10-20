@@ -62,6 +62,8 @@ class RemisionRead(BaseModel):
     toda_la_boca: bool
     creado_en: datetime
     retirada_en: datetime | None
+    # Solo al remitir: si el aviso por correo al especialista salio (None en los listados).
+    aviso_correo: bool | None = None
 
 
 class EspecialistaRead(BaseModel):

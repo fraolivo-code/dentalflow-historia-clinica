@@ -24,6 +24,7 @@ from app.schemas.remision import (
 )
 from app.security import hash_password, verificar_password
 from app.services import especialista as svc
+from app.services.correo import enviar_aviso_remision
 
 router = APIRouter(tags=["remisiones"], dependencies=[Depends(requerir_dra)])
 
@@ -98,7 +99,10 @@ async def remitir_paciente(
         session.add(RemisionDiente(remision_id=remision.id, numero_diente=numero))
     await session.commit()
     await session.refresh(remision)
-    return (await _remisiones_leidas(session, [remision]))[0]
+    leida = (await _remisiones_leidas(session, [remision]))[0]
+    # Aviso por correo (sin datos del paciente). Si falla no se deshace la remision: la Dra. ve que no se envio.
+    leida.aviso_correo = await enviar_aviso_remision(especialista.email) if especialista.email else False
+    return leida
 
 
 @router.get("/pacientes/{paciente_id}/remisiones", response_model=list[RemisionRead])
