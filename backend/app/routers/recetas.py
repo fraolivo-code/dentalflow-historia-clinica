@@ -45,13 +45,10 @@ async def _con_medicamentos(session: AsyncSession, recetas: list[Receta]) -> lis
     return recetas
 
 
-@router.post("/pacientes/{paciente_id}/recetas", response_model=RecetaRead, status_code=201)
-async def crear_receta(
-    paciente_id: UUID,
-    datos: RecetaCreate,
-    session: AsyncSession = Depends(get_session),
-    usuario: Usuario = Depends(get_current_usuario),
-):
+async def emitir_receta(
+    session: AsyncSession, usuario: Usuario, paciente_id: UUID, datos: RecetaCreate
+) -> Receta:
+    """Crea la receta firmada por el profesional vinculado a `usuario` (la Dra. o un especialista)."""
     await obtener_paciente_o_404(paciente_id, session)
 
     visita = None
@@ -109,6 +106,16 @@ async def crear_receta(
     return (await _con_medicamentos(session, [receta]))[0]
 
 
+@router.post("/pacientes/{paciente_id}/recetas", response_model=RecetaRead, status_code=201)
+async def crear_receta(
+    paciente_id: UUID,
+    datos: RecetaCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    return await emitir_receta(session, usuario, paciente_id, datos)
+
+
 @router.get("/pacientes/{paciente_id}/recetas", response_model=list[RecetaRead])
 async def listar_recetas(paciente_id: UUID, session: AsyncSession = Depends(get_session)):
     """Mas reciente primero (por fecha, y por carga dentro del mismo dia)."""
@@ -121,8 +128,13 @@ async def listar_recetas(paciente_id: UUID, session: AsyncSession = Depends(get_
     return await _con_medicamentos(session, list(resultado.scalars().all()))
 
 
-async def _pdf_de_receta(
-    paciente_id: UUID, receta_id: UUID, session: AsyncSession, plantilla: str, prefijo: str
+async def pdf_de_receta(
+    paciente_id: UUID,
+    receta_id: UUID,
+    session: AsyncSession,
+    plantilla: str,
+    prefijo: str,
+    con_cedula: bool = True,
 ) -> Response:
     """
     Una misma receta genera 2 documentos (practica real de la Dra.): el
@@ -141,7 +153,7 @@ async def _pdf_de_receta(
         {
             "profesional": profesional,
             "paciente_nombre": paciente.nombre_completo,
-            "paciente_cedula": paciente.cedula,
+            "paciente_cedula": paciente.cedula if con_cedula else None,
             "fecha": receta.fecha,
             "medicamentos": receta.medicamentos,
             "notas_generales": receta.notas_generales,
@@ -163,7 +175,7 @@ async def pdf_receta(
     session: AsyncSession = Depends(get_session),
 ):
     """Recipe (para la farmacia): solo nombre y presentacion de cada medicamento."""
-    return await _pdf_de_receta(paciente_id, receta_id, session, "receta.html", "recipe")
+    return await pdf_de_receta(paciente_id, receta_id, session, "receta.html", "recipe")
 
 
 @router.get("/pacientes/{paciente_id}/recetas/{receta_id}/pdf-indicaciones")
@@ -173,6 +185,6 @@ async def pdf_indicaciones_medicamentos(
     session: AsyncSession = Depends(get_session),
 ):
     """Indicaciones de medicamentos (para el paciente): posologia completa y notas generales."""
-    return await _pdf_de_receta(
+    return await pdf_de_receta(
         paciente_id, receta_id, session, "indicaciones_medicamentos.html", "indicaciones-medicamentos"
     )

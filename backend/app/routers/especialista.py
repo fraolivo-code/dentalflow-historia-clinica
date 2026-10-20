@@ -14,6 +14,7 @@ from app.models.common import ahora
 from app.models.examen import ExamenSolicitado
 from app.models.odontograma import OdontogramaHallazgo, OdontogramaLesionApical
 from app.models.paciente import Paciente
+from app.models.receta import Receta
 from app.models.remision import AtencionDiente, AtencionEspecialista, Remision
 from app.models.usuario import Usuario
 from app.schemas.especialista import (
@@ -28,6 +29,9 @@ from app.schemas.especialista import (
     PacienteEspecialista,
     RemisionEspecialista,
 )
+from app.routers.medicamentos import listar_medicamentos
+from app.routers.recetas import _con_medicamentos, emitir_receta, pdf_de_receta
+from app.schemas.receta import MedicamentoRead, RecetaCreate, RecetaRead
 from app.schemas.remision import AtencionCreate, AtencionRead
 from app.services import especialista as svc
 
@@ -272,3 +276,82 @@ async def borrar_mi_atencion(
     await session.execute(delete(AtencionDiente).where(AtencionDiente.atencion_id == atencion.id))
     await session.delete(atencion)
     await session.commit()
+
+
+# --- Sus recetas --------------------------------------------------------------------------------------------
+# Salen firmadas con su propio profesional (colegiatura). Sin visita ni tratamiento (son de la Dra.) y sin cedula.
+
+@router.get("/medicamentos", response_model=list[MedicamentoRead])
+async def medicamentos(
+    buscar: str | None = None,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(requerir_especialista),
+):
+    """Catalogo de medicamentos, para el autocompletar."""
+    return await listar_medicamentos(buscar, session)
+
+
+@router.post("/pacientes/{paciente_id}/recetas", response_model=RecetaRead, status_code=201)
+async def emitir_mi_receta(
+    paciente_id: UUID,
+    datos: RecetaCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(requerir_especialista),
+):
+    await svc.remision_activa(session, usuario, paciente_id)
+    if datos.visita_id is not None or datos.tratamiento_id is not None:
+        raise HTTPException(422, "Una receta del especialista no se liga a visitas ni a tratamientos de la Dra.")
+    receta = await emitir_receta(session, usuario, paciente_id, datos)
+    svc.registrar_acceso(session, usuario.id, paciente_id, "receta_emitida")
+    await session.commit()
+    return receta
+
+
+async def _mi_receta_o_404(session: AsyncSession, usuario: Usuario, paciente_id: UUID, receta_id: UUID) -> Receta:
+    await svc.remision_activa(session, usuario, paciente_id)
+    receta = await session.get(Receta, receta_id)
+    if receta is None or receta.paciente_id != paciente_id or receta.creado_por != usuario.id:
+        raise HTTPException(404, "Récipe no encontrado")
+    return receta
+
+
+@router.get("/pacientes/{paciente_id}/recetas", response_model=list[RecetaRead])
+async def mis_recetas(
+    paciente_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(requerir_especialista),
+):
+    """Solo las que emitio el (no las de la Dra. ni las de otros especialistas)."""
+    await svc.remision_activa(session, usuario, paciente_id)
+    filas = (
+        await session.execute(
+            select(Receta)
+            .where(Receta.paciente_id == paciente_id, Receta.creado_por == usuario.id)
+            .order_by(Receta.fecha.desc(), Receta.creado_en.desc())
+        )
+    ).scalars().all()
+    return await _con_medicamentos(session, list(filas))
+
+
+@router.get("/pacientes/{paciente_id}/recetas/{receta_id}/pdf")
+async def pdf_mi_receta(
+    paciente_id: UUID,
+    receta_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(requerir_especialista),
+):
+    await _mi_receta_o_404(session, usuario, paciente_id, receta_id)
+    return await pdf_de_receta(paciente_id, receta_id, session, "receta.html", "recipe", con_cedula=False)
+
+
+@router.get("/pacientes/{paciente_id}/recetas/{receta_id}/pdf-indicaciones")
+async def pdf_mis_indicaciones(
+    paciente_id: UUID,
+    receta_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(requerir_especialista),
+):
+    await _mi_receta_o_404(session, usuario, paciente_id, receta_id)
+    return await pdf_de_receta(
+        paciente_id, receta_id, session, "indicaciones_medicamentos.html", "indicaciones-medicamentos", con_cedula=False
+    )

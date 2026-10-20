@@ -117,6 +117,8 @@ RUTAS_PROHIBIDAS = [
     ("POST", "/usuarios"),
     ("PUT", "/mi-cuenta/clave-de-autorizacion"),
     ("GET", "/medicamentos"),
+    ("GET", "/pacientes/{pid}/recetas"),
+    ("POST", "/pacientes/{pid}/recetas"),
 ]
 
 
@@ -398,3 +400,98 @@ async def test_la_dra_puede_crear_cuentas_de_especialista(client, h_dra):
     )
     assert r.status_code == 201, r.text
     assert r.json()["rol"] == "especialista"
+
+
+# ============================== recetas del especialista ==============================
+
+LINEA = {"medicamento_nombre": "Amoxicilina 500 mg", "dosis": "1 capsula", "frecuencia": "cada 8 horas", "duracion": "7 dias"}
+
+
+@pytest_asyncio.fixture
+async def profesionales(session_factory, cuentas):
+    from app.models import ProfesionalTratante
+
+    async with session_factory() as s:
+        s.add(ProfesionalTratante(nombre="Dra Granados", usuario_id=cuentas["doctora"]))
+        s.add(ProfesionalTratante(nombre="Dr Cirujano", usuario_id=cuentas["cirujano"], numero_colegiatura="CM-123"))
+        await s.commit()
+
+
+@pytest.fixture
+def pdf_capturado(monkeypatch):
+    capturado = {}
+
+    async def _falso(plantilla, contexto):
+        capturado.update(contexto, plantilla=plantilla)
+        return b"%PDF-falso"
+
+    monkeypatch.setattr("app.routers.recetas.generar_pdf", _falso)
+    return capturado
+
+
+async def test_el_especialista_emite_su_receta_firmada_por_el(client, h_dra, h_cirujano, cuentas, profesionales):
+    pid = await _paciente(client, h_dra)
+    await _remitir(client, h_dra, pid, cuentas)
+    r = await client.post(f"/especialista/pacientes/{pid}/recetas", headers=h_cirujano, json={"medicamentos": [LINEA]})
+    assert r.status_code == 201, r.text
+    assert r.json()["medicamentos"][0]["medicamento_nombre_impreso"] == "Amoxicilina 500 mg"
+    mias = (await client.get(f"/especialista/pacientes/{pid}/recetas", headers=h_cirujano)).json()
+    assert [x["id"] for x in mias] == [r.json()["id"]]
+    # la Dra. la ve entre las recetas del paciente
+    assert [x["id"] for x in (await client.get(f"/pacientes/{pid}/recetas", headers=h_dra)).json()] == [r.json()["id"]]
+
+
+async def test_sin_profesional_vinculado_no_emite(client, h_dra, h_cirujano, cuentas):
+    pid = await _paciente(client, h_dra)
+    await _remitir(client, h_dra, pid, cuentas)
+    r = await client.post(f"/especialista/pacientes/{pid}/recetas", headers=h_cirujano, json={"medicamentos": [LINEA]})
+    assert r.status_code == 409
+
+
+async def test_no_receta_a_quien_no_le_remitieron_ni_con_visita_de_la_dra(client, h_dra, h_cirujano, cuentas, profesionales):
+    ajeno = await _paciente(client, h_dra, "Ajeno")
+    assert (await client.post(f"/especialista/pacientes/{ajeno}/recetas", headers=h_cirujano, json={"medicamentos": [LINEA]})).status_code == 404
+    mio = await _paciente(client, h_dra, "Mio")
+    await _remitir(client, h_dra, mio, cuentas)
+    r = await client.post(
+        f"/especialista/pacientes/{mio}/recetas", headers=h_cirujano,
+        json={"medicamentos": [LINEA], "visita_id": str(uuid.uuid4())},
+    )
+    assert r.status_code == 422
+
+
+async def test_solo_ve_y_descarga_sus_recetas(client, h_dra, h_cirujano, h_endo, cuentas, profesionales, pdf_capturado, session_factory):
+    from app.models import ProfesionalTratante
+
+    async with session_factory() as s:
+        s.add(ProfesionalTratante(nombre="Dr Endo", usuario_id=cuentas["endodoncista"]))
+        await s.commit()
+    pid = await _paciente(client, h_dra)
+    await _remitir(client, h_dra, pid, cuentas, "cirujano")
+    await _remitir(client, h_dra, pid, cuentas, "endodoncista", motivo="Endodoncia")
+    rc = (await client.post(f"/especialista/pacientes/{pid}/recetas", headers=h_cirujano, json={"medicamentos": [LINEA]})).json()
+    rd = (await client.post(f"/pacientes/{pid}/recetas", headers=h_dra, json={"medicamentos": [LINEA]})).json()
+
+    assert [x["id"] for x in (await client.get(f"/especialista/pacientes/{pid}/recetas", headers=h_endo)).json()] == []
+    for ajena in (rd["id"],):
+        assert (await client.get(f"/especialista/pacientes/{pid}/recetas/{ajena}/pdf", headers=h_cirujano)).status_code == 404
+    assert (await client.get(f"/especialista/pacientes/{pid}/recetas/{rc['id']}/pdf", headers=h_endo)).status_code == 404
+
+    r = await client.get(f"/especialista/pacientes/{pid}/recetas/{rc['id']}/pdf", headers=h_cirujano)
+    assert r.status_code == 200 and r.content.startswith(b"%PDF")
+    assert pdf_capturado["profesional"].nombre == "Dr Cirujano" and pdf_capturado["paciente_cedula"] is None
+    assert (await client.get(f"/especialista/pacientes/{pid}/recetas/{rc['id']}/pdf-indicaciones", headers=h_cirujano)).status_code == 200
+
+
+async def test_retirado_el_acceso_no_receta_ni_descarga(client, h_dra, h_cirujano, cuentas, profesionales, pdf_capturado):
+    pid = await _paciente(client, h_dra)
+    rem = (await _remitir(client, h_dra, pid, cuentas)).json()["id"]
+    rc = (await client.post(f"/especialista/pacientes/{pid}/recetas", headers=h_cirujano, json={"medicamentos": [LINEA]})).json()
+    await client.patch(f"/remisiones/{rem}/retirar", headers=h_dra)
+    assert (await client.post(f"/especialista/pacientes/{pid}/recetas", headers=h_cirujano, json={"medicamentos": [LINEA]})).status_code == 404
+    assert (await client.get(f"/especialista/pacientes/{pid}/recetas/{rc['id']}/pdf", headers=h_cirujano)).status_code == 404
+
+
+async def test_catalogo_de_medicamentos_para_el_especialista(client, h_cirujano, h_asistente):
+    assert (await client.get("/especialista/medicamentos", headers=h_cirujano)).status_code == 200
+    assert (await client.get("/especialista/medicamentos", headers=h_asistente)).status_code == 403
