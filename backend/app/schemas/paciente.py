@@ -152,11 +152,10 @@ class PacienteUpdate(BaseModel):
     alerta: bool | None = None
     alerta_texto: str | None = None
     seguimiento_periodontal: bool | None = None
-    seguimiento_periodontal_texto: str | None = None
     activo: bool | None = None
     motivo_inactivo: str | None = None
 
-    @field_validator("alerta_texto", "seguimiento_periodontal_texto", "motivo_inactivo")
+    @field_validator("alerta_texto", "motivo_inactivo")
     @classmethod
     def _texto_libre_limpio(cls, v: str | None) -> str | None:
         if v is None:
@@ -234,7 +233,6 @@ class PacienteRead(AuditRead):
     alerta: bool
     alerta_texto: str | None
     seguimiento_periodontal: bool
-    seguimiento_periodontal_texto: str | None
     activo: bool
     motivo_inactivo: str | None
 

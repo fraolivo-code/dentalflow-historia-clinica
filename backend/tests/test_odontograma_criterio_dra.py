@@ -54,15 +54,6 @@ def test_gingivitis_es_una_condicion_compatible_con_todo():
     assert TipoHallazgo.gingivitis in GRUPO_CONDICION
 
 
-def test_gingivitis_se_dibuja_como_GING_junto_al_numero():
-    from app.services.odontograma_svg import NARANJA
-
-    con = [t for t in _diente(_dibujo([_h(45, "gingivitis")]), 45)
-           if _tag(t) == "text" and t.text == "GING" and t.get("fill") == NARANJA]
-    assert len(con) == 1
-    assert not [t for t in _diente(_dibujo([]), 45) if _tag(t) == "text" and t.text == "GING"]
-
-
 # --- Implante rehabilitado / no rehabilitado --------------------------------------------------------
 
 from app.services.odontograma_svg import CORONA, ROJO  # noqa: E402

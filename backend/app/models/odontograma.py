@@ -13,6 +13,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    false,
     true,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
 from app.enums import (
+    CondicionGeneral,
     EstadoGeneralPuente,
     OrigenHallazgo,
     RolDientePuente,
@@ -135,6 +137,34 @@ class OdontogramaLesionApical(Base, UUIDPk, AuditMixin):
     resuelto_por_hallazgo_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("odontograma_hallazgo.id"), nullable=True
     )
+
+
+class OdontogramaCondicionGeneral(Base, UUIDPk, AuditMixin):
+    """
+    Condicion de toda la boca (no de un diente): hoy, gingivitis. Se dibuja una sola vez («GING», naranja, al
+    centro del odontograma). Se cierra sin borrarse (resuelto), como los hallazgos.
+    """
+
+    __tablename__ = "odontograma_condicion_general"
+
+    paciente_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("paciente.id"), nullable=False, index=True
+    )
+    visita_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("visita.id"), nullable=True
+    )
+    tipo: Mapped[CondicionGeneral] = mapped_column(
+        Enum(
+            CondicionGeneral,
+            name="condicion_general",
+            native_enum=True,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        ),
+        nullable=False,
+    )
+    fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    resuelto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
+    resuelto_fecha: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class PuenteFijo(Base, UUIDPk, AuditMixin):

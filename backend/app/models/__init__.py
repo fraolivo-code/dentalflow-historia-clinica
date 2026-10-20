@@ -14,6 +14,7 @@ from app.models.indicacion import IndicacionTratamiento, PlantillaIndicacion
 from app.models.observacion import Observacion
 from app.models.odontograma import (
     DienteAnatomia,
+    OdontogramaCondicionGeneral,
     OdontogramaHallazgo,
     OdontogramaLesionApical,
     PuenteFijo,
@@ -43,6 +44,7 @@ __all__ = [
     "IndicacionTratamiento",
     "Medicamento",
     "Observacion",
+    "OdontogramaCondicionGeneral",
     "OdontogramaHallazgo",
     "OdontogramaLesionApical",
     "PacienteAntecedente",

@@ -246,6 +246,13 @@ def validar_superficie(tipo: TipoHallazgo, superficie: SuperficieDental | None) 
         raise ValueError(f"{tipo.value} solo admite superficie {opciones}")
 
 
+class CondicionGeneral(str, enum.Enum):
+    """Condicion de toda la boca o de varios dientes, no de uno (19/10/2026, migracion 0037)."""
+
+    gingivitis = "gingivitis"
+    periodontitis = "periodontitis"   # general o de varios dientes; la de un diente es el hallazgo «requiere_periodontal»
+
+
 class TipoLesionApical(str, enum.Enum):
     periapical = "periapical"
     periimplantitis = "periimplantitis"

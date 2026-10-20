@@ -8,10 +8,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.deps import get_current_usuario, get_session, requerir_dra
 from app.enums import NUMEROS_DIENTE_VALIDOS
 from app.models.common import ahora
-from app.models.odontograma import DienteAnatomia, OdontogramaHallazgo, OdontogramaLesionApical
+from app.models.odontograma import (
+    DienteAnatomia,
+    OdontogramaCondicionGeneral,
+    OdontogramaHallazgo,
+    OdontogramaLesionApical,
+)
+from app.models.visita import Visita
 from app.models.usuario import Usuario
 from app.routers.pacientes import obtener_paciente_o_404
 from app.schemas.odontograma import (
+    CondicionGeneralCreate,
+    CondicionGeneralRead,
+    CondicionGeneralResolver,
     HallazgosLoteCreate,
     TratamientoRealizadoLoteCreate,
     DienteAnatomiaRead,
@@ -401,3 +410,81 @@ async def listar_lesiones_apicales_de_diente(
         )
     )
     return resultado.scalars().all()
+
+
+# --- Condiciones de toda la boca (gingivitis), 19/10/2026 ----------------------------------------------------
+
+@router.get("/pacientes/{paciente_id}/condiciones-generales", response_model=list[CondicionGeneralRead])
+async def listar_condiciones_generales(
+    paciente_id: UUID, al: date | None = None, session: AsyncSession = Depends(get_session)
+):
+    """Las vigentes; con `al`, las que estaban marcadas ese dia (igual que el odontograma «al dia»)."""
+    await obtener_paciente_o_404(paciente_id, session)
+    condiciones = [OdontogramaCondicionGeneral.paciente_id == paciente_id]
+    if al is None:
+        condiciones.append(OdontogramaCondicionGeneral.resuelto.is_(False))
+    else:
+        condiciones += [
+            OdontogramaCondicionGeneral.fecha <= al,
+            or_(OdontogramaCondicionGeneral.resuelto.is_(False), OdontogramaCondicionGeneral.resuelto_fecha > al),
+        ]
+    filas = await session.execute(select(OdontogramaCondicionGeneral).where(*condiciones))
+    return filas.scalars().all()
+
+
+@router.post(
+    "/pacientes/{paciente_id}/condiciones-generales", response_model=CondicionGeneralRead, status_code=201
+)
+async def crear_condicion_general(
+    paciente_id: UUID,
+    datos: CondicionGeneralCreate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    await obtener_paciente_o_404(paciente_id, session)
+    if datos.visita_id is not None:
+        visita = await session.get(Visita, datos.visita_id)
+        if visita is None or visita.paciente_id != paciente_id:
+            raise HTTPException(422, "La visita no existe o no es de este paciente.")
+    ya_marcada = await session.execute(
+        select(OdontogramaCondicionGeneral.id).where(
+            OdontogramaCondicionGeneral.paciente_id == paciente_id,
+            OdontogramaCondicionGeneral.tipo == datos.tipo,
+            OdontogramaCondicionGeneral.resuelto.is_(False),
+        )
+    )
+    if ya_marcada.first() is not None:
+        raise HTTPException(409, f"{datos.tipo.value} ya esta marcada para este paciente")
+    condicion = OdontogramaCondicionGeneral(paciente_id=paciente_id, **datos.model_dump(), creado_por=usuario.id)
+    session.add(condicion)
+    await session.commit()
+    await session.refresh(condicion)
+    return condicion
+
+
+@router.patch(
+    "/pacientes/{paciente_id}/condiciones-generales/{condicion_id}/resolver",
+    response_model=CondicionGeneralRead,
+)
+async def resolver_condicion_general(
+    paciente_id: UUID,
+    condicion_id: UUID,
+    datos: CondicionGeneralResolver,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
+    """Cierre manual (resuelto=True con fecha, sin borrar el historico)."""
+    condicion = await session.get(OdontogramaCondicionGeneral, condicion_id)
+    if condicion is None or condicion.paciente_id != paciente_id:
+        raise HTTPException(404, "Condicion no encontrada")
+    if condicion.resuelto:
+        raise HTTPException(409, "La condicion ya estaba resuelta")
+    if datos.fecha < condicion.fecha:
+        raise HTTPException(422, "La fecha de resolucion no puede ser anterior a la fecha de la condicion")
+    condicion.resuelto = True
+    condicion.resuelto_fecha = datos.fecha
+    condicion.actualizado_en = ahora()
+    condicion.actualizado_por = usuario.id
+    await session.commit()
+    await session.refresh(condicion)
+    return condicion

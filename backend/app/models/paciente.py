@@ -113,7 +113,6 @@ class Paciente(Base, UUIDPk, AuditMixin):
     seguimiento_periodontal: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
-    seguimiento_periodontal_texto: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Baja explicita (cambio de odontologo, etc.); sin ella siempre se le recuerda su control.
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
     motivo_inactivo: Mapped[str | None] = mapped_column(Text, nullable=True)

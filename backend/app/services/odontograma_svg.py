@@ -667,9 +667,6 @@ def _diente(numero: int, x: float, y0: float, hallazgos, lesiones, en_puente) ->
         extra.append(_texto(cx + 9, numero_y, "EXF", AZUL, 7.5))
     if e.tiene("supernumerario"):
         extra.append(_texto(cx + 9, numero_y, "SN", ROJO, 7.5))
-    if e.tiene("gingivitis"):
-        # A la izquierda del numero; mas afuera si el diente lleva el rotulo de exodoncia.
-        extra.append(_texto(cx - (24 if e.exodoncia else 9), numero_y, "GING", NARANJA, 7.5, "end"))
     if e.tiene("requiere_periodontal"):
         # Detras de "SN" si el diente tambien lo lleva.
         dx = 22 if e.tiene("supernumerario") else 9

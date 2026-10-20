@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.enums import (
     NUMEROS_DIENTE_VALIDOS,
+    CondicionGeneral,
     CondicionIndividualPuente,
     EstadoGeneralPuente,
     OrigenHallazgo,
@@ -86,6 +87,30 @@ class TratamientoRealizadoCreate(NumeroDienteValidoMixin):
     descripcion: str | None = None
     visita_id: UUID | None = None
     tratamiento_id: UUID | None = None
+
+
+class CondicionGeneralCreate(BaseModel):
+    """Condicion de toda la boca (gingivitis): una vez para el paciente, no por diente."""
+
+    tipo: CondicionGeneral
+    fecha: date
+    visita_id: UUID | None = None
+
+
+class CondicionGeneralResolver(BaseModel):
+    fecha: date
+
+
+class CondicionGeneralRead(AuditRead):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    paciente_id: UUID
+    visita_id: UUID | None
+    tipo: CondicionGeneral
+    fecha: date
+    resuelto: bool
+    resuelto_fecha: date | None
 
 
 class OdontogramaHallazgoResolver(BaseModel):
