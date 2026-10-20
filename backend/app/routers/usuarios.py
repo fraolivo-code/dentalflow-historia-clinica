@@ -60,6 +60,23 @@ async def _existe(session: AsyncSession, columna, valor, excepto: UUID | None = 
     return (await session.execute(consulta.limit(1))).first() is not None
 
 
+async def _correo_repetido(session: AsyncSession, email: str, excepto: UUID | None = None) -> HTTPException | None:
+    """409 que dice QUIEN tiene el correo y como resolverlo desde la app (solo lo ve quien gestiona usuarios)."""
+    consulta = select(Usuario.nombre, Usuario.activo).where(Usuario.email == email)
+    if excepto is not None:
+        consulta = consulta.where(Usuario.id != excepto)
+    fila = (await session.execute(consulta.limit(1))).first()
+    if fila is None:
+        return None
+    nombre, activo = fila
+    como = (
+        "Está inactiva: reactívela o cámbiele el correo en Usuarios → Editar."
+        if not activo
+        else "Use otro correo o cambie el de esa cuenta en Usuarios → Editar."
+    )
+    return HTTPException(409, f"Ese correo ya lo tiene la cuenta «{nombre}». {como}")
+
+
 async def quedaria_sin_acceso_total(session: AsyncSession, objetivo: Usuario) -> bool:
     """True si, sin `objetivo`, no quedaria ninguna cuenta activa con acceso total."""
     otros = await session.scalar(
@@ -107,8 +124,8 @@ async def crear_usuario(
 
     if await _existe(session, Usuario.nombre, nombre):
         raise HTTPException(409, "Ya existe un usuario con ese nombre.")
-    if email is not None and await _existe(session, Usuario.email, email):
-        raise HTTPException(409, "Ya existe un usuario con ese correo.")
+    if email is not None and (repetido := await _correo_repetido(session, email)):
+        raise repetido
 
     usuario = Usuario(
         nombre=nombre,
@@ -190,10 +207,8 @@ async def actualizar_usuario(
     if "email" in enviados:
         email = _validar_email(datos.email, rol_final)
         cambia_email = email != usuario.email
-        if cambia_email and email is not None and await _existe(
-            session, Usuario.email, email, excepto=usuario.id
-        ):
-            raise HTTPException(409, "Ya existe un usuario con ese correo.")
+        if cambia_email and email is not None and (repetido := await _correo_repetido(session, email, usuario.id)):
+            raise repetido
     elif cambia_rol:
         _validar_email(usuario.email, rol_final)
 

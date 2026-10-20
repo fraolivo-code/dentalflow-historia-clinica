@@ -540,3 +540,18 @@ async def test_el_texto_del_aviso_no_lleva_datos_clinicos(monkeypatch):
     assert await correo.enviar_aviso_remision("dr@e.com") is True
     assert "https://app.ejemplo.com" in capturado["texto"] and "Mis pacientes" in capturado["texto"]
     assert "paciente" in capturado["texto"].lower()
+
+
+async def test_correo_repetido_dice_que_cuenta_lo_tiene_y_como_resolverlo(client, h_dra, cuentas):
+    base = {"rol": "especialista", "password": "UnaClave#Larga2026", "activo": True}
+    a = await client.post("/usuarios", headers=h_dra, json={**base, "nombre": "esp.vieja", "email": "mismo@e.com"})
+    assert a.status_code == 201, a.text
+    await client.patch(f"/usuarios/{a.json()['id']}", headers=h_dra, json={"activo": False})
+
+    r = await client.post("/usuarios", headers=h_dra, json={**base, "nombre": "esp.nueva", "email": "mismo@e.com"})
+    assert r.status_code == 409
+    assert "esp.vieja" in r.json()["detail"] and "inactiva" in r.json()["detail"] and "Usuarios" in r.json()["detail"]
+
+    # Se resuelve desde la app: liberar el correo de la cuenta vieja y crear la nueva.
+    assert (await client.patch(f"/usuarios/{a.json()['id']}", headers=h_dra, json={"email": "otro@e.com"})).status_code == 200
+    assert (await client.post("/usuarios", headers=h_dra, json={**base, "nombre": "esp.nueva", "email": "mismo@e.com"})).status_code == 201
