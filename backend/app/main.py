@@ -13,6 +13,7 @@ from app.routers import (
     examenes,
     recordatorios,
     historia_clinica,
+    interno,
     indicaciones_tratamiento,
     linea_de_tiempo,
     medicamentos,
@@ -44,6 +45,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(interno.router)
 app.include_router(usuarios.router)
 app.include_router(configuracion.router)
 app.include_router(pacientes.router)

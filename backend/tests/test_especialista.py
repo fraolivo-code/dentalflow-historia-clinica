@@ -555,3 +555,34 @@ async def test_correo_repetido_dice_que_cuenta_lo_tiene_y_como_resolverlo(client
     # Se resuelve desde la app: liberar el correo de la cuenta vieja y crear la nueva.
     assert (await client.patch(f"/usuarios/{a.json()['id']}", headers=h_dra, json={"email": "otro@e.com"})).status_code == 200
     assert (await client.post("/usuarios", headers=h_dra, json={**base, "nombre": "esp.nueva", "email": "mismo@e.com"})).status_code == 201
+
+
+# ============================== consulta del puente de correo ==============================
+
+TOKEN_PUENTE = "t" * 40
+
+
+async def test_el_puente_pregunta_si_un_correo_es_de_un_usuario_activo(client, h_dra, cuentas, monkeypatch):
+    monkeypatch.setenv("CORREO_PUENTE_TOKEN", TOKEN_PUENTE)
+    ok = {"X-Puente-Token": TOKEN_PUENTE}
+
+    async def pregunta(email, headers=ok):
+        return await client.get("/interno/correo-permitido", params={"email": email}, headers=headers)
+
+    assert (await pregunta("cirujano@e.com")).json() == {"permitido": True}
+    assert (await pregunta("  CIRUJANO@E.COM ")).json() == {"permitido": True}          # normaliza
+    assert (await pregunta("nadie@e.com")).json() == {"permitido": False}
+    # una cuenta inactiva ya no recibe avisos
+    await client.patch(f"/usuarios/{cuentas['cirujano']}", headers=h_dra, json={"activo": False})
+    assert (await pregunta("cirujano@e.com")).json() == {"permitido": False}
+
+
+async def test_la_consulta_del_puente_exige_su_clave(client, cuentas, monkeypatch):
+    monkeypatch.setenv("CORREO_PUENTE_TOKEN", TOKEN_PUENTE)
+    ruta = "/interno/correo-permitido"
+    assert (await client.get(ruta, params={"email": "cirujano@e.com"})).status_code == 401
+    assert (await client.get(ruta, params={"email": "cirujano@e.com"}, headers={"X-Puente-Token": "otra"})).status_code == 401
+    # sin clave configurada en el servidor, nadie entra (ni con encabezado vacio)
+    monkeypatch.delenv("CORREO_PUENTE_TOKEN")
+    assert (await client.get(ruta, params={"email": "cirujano@e.com"}, headers={"X-Puente-Token": ""})).status_code == 401
+    assert (await client.get(ruta, params={"email": "cirujano@e.com"}, headers={"X-Puente-Token": TOKEN_PUENTE})).status_code == 401
