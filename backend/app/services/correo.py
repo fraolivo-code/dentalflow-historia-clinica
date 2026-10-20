@@ -39,7 +39,10 @@ async def _enviar(para: str, asunto: str, texto: str, que: str) -> bool:
         cuerpo = respuesta.json()
         if respuesta.status_code == 200 and isinstance(cuerpo, dict) and cuerpo.get("ok") is True:
             return True
-        logger.error("%s: el puente de correo rechazo el envio (HTTP %s).", que, respuesta.status_code)
+        # Codigo corto del puente (destinatario_no_permitido, no_autorizado...): ayuda a diagnosticar y no lleva datos.
+        motivo = cuerpo.get("error") if isinstance(cuerpo, dict) else None
+        motivo = motivo if isinstance(motivo, str) and motivo.replace("_", "").isalnum() and len(motivo) <= 40 else "?"
+        logger.error("%s: el puente de correo rechazo el envio (HTTP %s, motivo: %s).", que, respuesta.status_code, motivo)
     except Exception as exc:  # noqa: BLE001 - la respuesta de la API no depende del envio
         # Solo el tipo: el texto de la excepcion podria incluir la URL.
         logger.error("%s: no se pudo enviar el correo: %s", que, type(exc).__name__)
