@@ -30,6 +30,8 @@ class RolUsuario(str, enum.Enum):
     dra = "dra"
     asistente = "asistente"
     admin = "admin"
+    # 19/10/2026 (migracion 0038): especialista externo; solo ve a los pacientes que la Dra. le remite.
+    especialista = "especialista"
 
 
 class HigieneBucal(str, enum.Enum):

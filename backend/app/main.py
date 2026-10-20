@@ -8,6 +8,7 @@ from app.routers import (
     configuracion,
     consentimientos,
     constancias_asistencia,
+    especialista,
     estado_historia,
     examenes,
     recordatorios,
@@ -24,6 +25,7 @@ from app.routers import (
     profesionales_tratantes,
     puentes,
     recetas,
+    remisiones,
     tratamientos,
     usuarios,
     visitas,
@@ -61,6 +63,8 @@ app.include_router(tratamientos.router)
 app.include_router(bitacora.router)
 app.include_router(examenes.router)
 app.include_router(recordatorios.router)
+app.include_router(remisiones.router)
+app.include_router(especialista.router)
 app.include_router(estado_historia.router)
 app.include_router(linea_de_tiempo.router)
 app.include_router(observaciones.router)

@@ -530,7 +530,7 @@ async def test_crear_usuario_validaciones(api, dra, crear):
     r = await api.post("/usuarios", headers=h, json=_nuevo(nombre="otra", email="UNO@ejemplo.com"))
     assert r.status_code == 409 and "correo" in r.json()["detail"]
     r = await api.post("/usuarios", headers=h, json=_nuevo(nombre="adm", rol="admin"))
-    assert r.status_code == 422 and "dra y asistente" in r.json()["detail"]
+    assert r.status_code == 422 and "dra, asistente y especialista" in r.json()["detail"]
     r = await api.post("/usuarios", headers=h, json=_nuevo(nombre="sin.correo", rol="dra"))
     assert r.status_code == 422 and "obligatorio" in r.json()["detail"]
     r = await api.post("/usuarios", headers=h, json=_nuevo(nombre="corta", password="123456789"))

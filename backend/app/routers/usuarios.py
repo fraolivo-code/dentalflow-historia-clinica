@@ -32,13 +32,13 @@ router = APIRouter(
 )
 
 # No se crean (ni se asignan) cuentas admin por la API.
-ROLES_ASIGNABLES = (RolUsuario.dra, RolUsuario.asistente)
+ROLES_ASIGNABLES = (RolUsuario.dra, RolUsuario.asistente, RolUsuario.especialista)
 _PATRON_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _validar_rol(rol: RolUsuario) -> None:
     if rol not in ROLES_ASIGNABLES:
-        raise HTTPException(422, "Solo se pueden asignar los tipos de acceso dra y asistente.")
+        raise HTTPException(422, "Solo se pueden asignar los tipos de acceso dra, asistente y especialista.")
 
 
 def _validar_email(email: str | None, rol: RolUsuario) -> str | None:

@@ -26,6 +26,7 @@ from app.models.periodontograma import PeriodontogramaDienteResumen, Periodontog
 from app.models.profesional_tratante import ProfesionalTratante
 from app.models.recordatorio import Recordatorio
 from app.models.receta import Medicamento, Receta, RecetaMedicamento
+from app.models.remision import AccesoPaciente, AtencionDiente, AtencionEspecialista, Remision, RemisionDiente
 from app.models.token_recuperacion import TokenRecuperacion
 from app.models.tratamiento import Tratamiento, TratamientoDiente
 from app.models.usuario import Usuario
@@ -56,7 +57,12 @@ __all__ = [
     "PeriodontogramaRegistro",
     "PlantillaIndicacion",
     "ProfesionalTratante",
+    "AccesoPaciente",
+    "AtencionDiente",
+    "AtencionEspecialista",
     "Receta",
+    "Remision",
+    "RemisionDiente",
     "Recordatorio",
     "RecetaMedicamento",
     "TokenRecuperacion",

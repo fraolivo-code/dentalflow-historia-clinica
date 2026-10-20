@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +26,17 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+# Un especialista solo puede usar sus propias rutas y las de su cuenta (login, cambio de clave). Todo lo demas es 403,
+# incluidas las rutas que solo piden «estar autenticado»: asi un especialista nunca ve lo que no se le dio.
+RUTAS_DEL_ESPECIALISTA = ("/especialista", "/auth")
+
+
+def _ruta_del_especialista(path: str) -> bool:
+    return any(path == base or path.startswith(base + "/") for base in RUTAS_DEL_ESPECIALISTA)
+
+
 async def get_usuario_autenticado(
+    request: Request,
     credenciales: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     session: AsyncSession = Depends(get_session),
 ) -> Usuario:
@@ -56,6 +66,8 @@ async def get_usuario_autenticado(
     usuario = await session.get(Usuario, usuario_id)
     if usuario is None or not usuario.activo:
         raise no_autorizado
+    if usuario.rol == RolUsuario.especialista and not _ruta_del_especialista(request.url.path):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tiene permiso para esta accion")
 
     # Un token emitido antes del ultimo cambio de clave deja de servir. `iat`
     # viene en segundos enteros: se compara contra la clave truncada al segundo.
@@ -98,6 +110,7 @@ def requerir_rol(*roles: RolUsuario):
 
 
 requerir_dra = requerir_rol(RolUsuario.dra)
+requerir_especialista = requerir_rol(RolUsuario.especialista)
 
 # "Cuenta con acceso total" = hoy el rol dra. La gestion de usuarios usa estos
 # nombres genericos para que el futuro renombrado de roles sea un cambio acotado.

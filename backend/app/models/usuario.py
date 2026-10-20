@@ -47,6 +47,9 @@ class Usuario(Base):
     )
     actualizado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Clave de autorizacion de la Dra. (6 digitos, migracion 0038): con ella autoriza los borrados de un especialista.
+    pin_autorizacion_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     @property
     def bloqueado(self) -> bool:
         """Calculado: bloqueado_hasta posterior a ahora (no es una columna)."""
