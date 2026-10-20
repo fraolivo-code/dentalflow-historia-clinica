@@ -28,6 +28,15 @@ router = APIRouter(
 )
 
 
+def _para_rol(paciente: Paciente, usuario: Usuario) -> PacienteRead:
+    """El paciente como lo ve ese rol: el detalle de la alerta (puede nombrar una condicion sensible) solo lo ve
+    una cuenta con acceso total; el resto ve unicamente que hay una alerta."""
+    leido = PacienteRead.model_validate(paciente)
+    if usuario.rol in ROLES_ACCESO_TOTAL:
+        return leido
+    return leido.model_copy(update={"alerta_texto": None})
+
+
 # Desde esta edad la cedula es obligatoria; antes, opcional (el sistema la pide al cumplirla).
 EDAD_CEDULA_OBLIGATORIA = 12
 # Datos de identidad que la asistente puede completar (no cambiar) si estan vacios.
@@ -109,11 +118,15 @@ async def crear_paciente(
         await _verificar_cedula_libre(session, datos.cedula)
         raise HTTPException(409, f"Ya existe una historia con el número {numero_historia}.")
     await session.refresh(paciente)
-    return paciente
+    return _para_rol(paciente, usuario)
 
 
 @router.get("", response_model=list[PacienteRead])
-async def listar_pacientes(q: str | None = None, session: AsyncSession = Depends(get_session)):
+async def listar_pacientes(
+    q: str | None = None,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
     """
     q busca por nombre_completo (parcial, sin distinguir mayusculas/acentos
     via la extension unaccent de Postgres — migracion 0005) o por
@@ -130,15 +143,19 @@ async def listar_pacientes(q: str | None = None, session: AsyncSession = Depends
             )
         )
     resultado = await session.execute(query.order_by(Paciente.nombre_completo))
-    return resultado.scalars().all()
+    return [_para_rol(p, usuario) for p in resultado.scalars().all()]
 
 
 @router.get("/{paciente_id}", response_model=PacienteRead)
-async def obtener_paciente(paciente_id: UUID, session: AsyncSession = Depends(get_session)):
+async def obtener_paciente(
+    paciente_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(get_current_usuario),
+):
     paciente = await session.get(Paciente, paciente_id)
     if paciente is None:
         raise HTTPException(404, "Paciente no encontrado")
-    return paciente
+    return _para_rol(paciente, usuario)
 
 
 @router.patch("/{paciente_id}", response_model=PacienteRead)
@@ -186,7 +203,7 @@ async def actualizar_paciente(
         paciente_cambios.registrar(session, paciente.id, usuario.id, realizados)
         await session.commit()
         await session.refresh(paciente)
-    return paciente
+    return _para_rol(paciente, usuario)
 
 
 @router.post("/{paciente_id}/numero-historia", response_model=PacienteRead)

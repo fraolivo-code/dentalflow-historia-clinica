@@ -234,8 +234,8 @@ async def cerrar_lesiones_por_hallazgo(
     en la misma transaccion que el hallazgo nuevo:
     - "ausente" cierra todas las lesiones activas del diente (periapicales y
       periimplantitis: ya no hay ni raiz ni implante).
-    - "implante" ya NO cierra las periapicales (18/10/2026, pedido de la Dra.): la lesion apical y la
-      periimplantitis son independientes; ninguna sustituye a la otra.
+    - "implante" cierra las periapicales (el diente ya no tiene raiz natural; no existe lesion apical en un
+      implante, confirmado por la Dra. el 19/10/2026).
     - Si el hallazgo nuevo cierra un "implante" activo (por exclusividad),
       se cierra tambien la periimplantitis.
     Ningun otro hallazgo toca las lesiones — "sano" o un endo no las cierran.
@@ -243,6 +243,8 @@ async def cerrar_lesiones_por_hallazgo(
     tipos_a_cerrar: set[TipoLesionApical] = set()
     if nuevo.tipo_hallazgo == TipoHallazgo.ausente:
         tipos_a_cerrar = {TipoLesionApical.periapical, TipoLesionApical.periimplantitis}
+    elif nuevo.tipo_hallazgo == TipoHallazgo.implante:
+        tipos_a_cerrar = {TipoLesionApical.periapical}
     if cierra_implante:
         tipos_a_cerrar.add(TipoLesionApical.periimplantitis)
     if not tipos_a_cerrar:
@@ -299,10 +301,12 @@ async def resolver_tipo_lesion_apical(
     )
     es_implante = tiene_implante.scalar_one_or_none() is not None
 
-    if raiz == "Periimplantitis":
-        # Periimplantitis solo en un diente con implante activo; la lesion apical por raiz sigue disponible.
-        if not es_implante:
-            raise HTTPException(400, "Periimplantitis solo se marca en un diente con implante activo")
+    if es_implante:
+        # Un implante no tiene raiz natural: solo periimplantitis (la lesion apical no existe en un implante).
+        if raiz != "Periimplantitis":
+            raise HTTPException(
+                400, "El diente tiene implante activo: raiz debe ser 'Periimplantitis'"
+            )
         return TipoLesionApical.periimplantitis
 
     anatomia = await session.get(DienteAnatomia, numero_diente)

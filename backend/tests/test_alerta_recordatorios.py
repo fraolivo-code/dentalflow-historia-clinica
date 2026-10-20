@@ -176,3 +176,34 @@ async def test_visita_tipo_reevaluacion(client, h_dra):
     )
     assert r.status_code == 201, r.text
     assert r.json()["tipo"] == "reevaluacion"
+
+
+# --- El detalle de la alerta solo lo ve una cuenta con acceso total (19/10/2026) -------------------------
+
+async def test_la_asistente_ve_que_hay_alerta_pero_no_de_que_se_trata(client, h_dra, h_asistente):
+    pid = await _paciente(client, h_dra)
+    await client.patch(f"/pacientes/{pid}", headers=h_dra, json={"alerta": True, "alerta_texto": "Condición sensible"})
+
+    de_la_dra = (await client.get(f"/pacientes/{pid}", headers=h_dra)).json()
+    assert de_la_dra["alerta"] is True and de_la_dra["alerta_texto"] == "Condición sensible"
+
+    de_la_asistente = (await client.get(f"/pacientes/{pid}", headers=h_asistente)).json()
+    assert de_la_asistente["alerta"] is True and de_la_asistente["alerta_texto"] is None
+
+
+async def test_el_listado_tampoco_muestra_el_detalle_a_la_asistente(client, h_dra, h_asistente):
+    pid = await _paciente(client, h_dra)
+    await client.patch(f"/pacientes/{pid}", headers=h_dra, json={"alerta": True, "alerta_texto": "Condición sensible"})
+
+    lista_asistente = (await client.get("/pacientes", headers=h_asistente)).json()
+    assert [p["alerta"] for p in lista_asistente] == [True]
+    assert all(p["alerta_texto"] is None for p in lista_asistente)
+    assert (await client.get("/pacientes", headers=h_dra)).json()[0]["alerta_texto"] == "Condición sensible"
+
+
+async def test_la_respuesta_de_la_asistente_al_corregir_contacto_no_trae_el_detalle(client, h_dra, h_asistente):
+    pid = await _paciente(client, h_dra)
+    await client.patch(f"/pacientes/{pid}", headers=h_dra, json={"alerta": True, "alerta_texto": "Condición sensible"})
+    r = await client.patch(f"/pacientes/{pid}", headers=h_asistente, json={"telefono_fijo": "02121234567"})
+    assert r.status_code == 200, r.text
+    assert r.json()["alerta"] is True and r.json()["alerta_texto"] is None
