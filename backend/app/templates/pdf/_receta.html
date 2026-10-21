@@ -31,8 +31,10 @@
   .nombre { margin: 0; font-weight: 600; font-size: 11pt; color: var(--primario); }
   .presentacion { font-weight: 400; font-size: 9pt; color: var(--secundario); }
 
-  /* Si no entra, el ultimo bloque pasa de pagina junto con la firma. */
-  .firma { margin-top: 14pt; break-before: avoid; }
+  /* La firma va fija al pie de la hoja, a 1.5 cm del borde inferior: es un elemento "running" que se imprime en el
+     margen inferior (4 cm = 1.5 cm de aire + el alto de la firma). El texto queda siempre por encima de ese margen. */
+  @page { margin-bottom: 4cm; @bottom-center { content: element(firma); vertical-align: bottom; padding-bottom: 1.5cm; } }
+  .firma { position: running(firma); margin: 0; }
   .firma-linea { width: 55%; }
 
   {% block estilos_receta %}{% endblock %}

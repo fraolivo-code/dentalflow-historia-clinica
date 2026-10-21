@@ -664,5 +664,7 @@ def test_recipe_e_indicaciones_son_media_carta_en_mitades_opuestas_de_una_hoja_c
     indicaciones = servicio_pdf._plantillas.get_template("indicaciones_medicamentos.html").render(**contexto)
     for html in (recipe, indicaciones):
         assert "size: 11in 8.5in" in html            # Carta horizontal
+    for html in (recipe, indicaciones):
+        assert "position: running(firma)" in html and "element(firma)" in html     # firma fija al pie
     assert "margin-right: 430pt" in recipe and "margin-left: 430pt" not in recipe          # recipe: mitad izquierda
     assert "margin-left: 430pt" in indicaciones and "margin-right: 430pt" not in indicaciones  # indicaciones: mitad derecha
