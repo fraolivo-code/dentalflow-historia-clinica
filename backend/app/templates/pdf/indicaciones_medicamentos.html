@@ -4,16 +4,18 @@
 {% block titulo %}Indicaciones de medicamentos{% endblock %}
 
 {% block estilos_receta %}
+  /* Mitad derecha de la hoja Carta horizontal (queda detras del recipe al voltear la hoja). */
+  @page { margin-left: 430pt; margin-right: 1.2cm; }
   /* Columnas de ancho fijo: Dosis / Via / Frecuencia / Duracion quedan
      alineadas de un medicamento al siguiente, como en un formulario. */
   .posologia { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 4pt 0 0; }
-  .posologia td { padding: 0 12pt 0 0; vertical-align: top; }
+  .posologia td { padding: 0 6pt 0 0; vertical-align: top; }
   .col-dosis { width: 27%; } .col-via { width: 20%; } .col-frecuencia { width: 31%; } .col-duracion { width: 22%; }
-  .posologia .etiqueta { font-size: 7.5pt; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secundario); line-height: 1.3; }
-  .posologia .valor { font-size: 11.5pt; color: var(--texto); }
-  .adicionales { margin: 4pt 0 0; font-style: italic; white-space: pre-line; }
+  .posologia .etiqueta { font-size: 6.5pt; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secundario); line-height: 1.3; }
+  .posologia .valor { font-size: 9.5pt; color: var(--texto); }
+  .adicionales { font-size: 9pt; margin: 3pt 0 0; font-style: italic; white-space: pre-line; }
 
-  .notas { margin: 16pt 0 0; padding-top: 8pt; border-top: 0.75pt solid var(--borde); page-break-inside: avoid; }
+  .notas { margin: 10pt 0 0; padding-top: 6pt; font-size: 9.5pt; border-top: 0.75pt solid var(--borde); page-break-inside: avoid; }
   .notas-titulo { margin: 0 0 2pt; font-weight: 600; color: var(--primario); }
   .notas p { margin: 0; white-space: pre-line; }
 {% endblock %}

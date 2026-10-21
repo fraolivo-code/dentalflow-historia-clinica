@@ -649,3 +649,20 @@ def test_el_membrete_y_el_paciente_salen_en_el_recipe():
                   "RIF: V-1 · COV: 7747 · MPPS: 8353", "COV: 7747 · MPPS: 8353", "V-4022837",
                   "4 de marzo de 1990", "Mun. Sucre"):
         assert texto in html, texto
+
+
+def test_recipe_e_indicaciones_son_media_carta_en_mitades_opuestas_de_una_hoja_carta_horizontal():
+    from types import SimpleNamespace
+
+    from app.services import pdf as servicio_pdf
+
+    prof = SimpleNamespace(nombre="OD X", especialidad=None, direccion=None, telefonos=None, correo=None, rif=None,
+                           cov="1", mpps="2", numero_colegiatura=None)
+    contexto = dict(profesional=prof, paciente_nombre="P", paciente_cedula=None, paciente_fecha_nacimiento=None,
+                    paciente_direccion_corta=None, fecha=date(2026, 10, 20), medicamentos=[], notas_generales=None)
+    recipe = servicio_pdf._plantillas.get_template("receta.html").render(**contexto)
+    indicaciones = servicio_pdf._plantillas.get_template("indicaciones_medicamentos.html").render(**contexto)
+    for html in (recipe, indicaciones):
+        assert "size: 11in 8.5in" in html            # Carta horizontal
+    assert "margin-right: 430pt" in recipe and "margin-left: 430pt" not in recipe          # recipe: mitad izquierda
+    assert "margin-left: 430pt" in indicaciones and "margin-right: 430pt" not in indicaciones  # indicaciones: mitad derecha

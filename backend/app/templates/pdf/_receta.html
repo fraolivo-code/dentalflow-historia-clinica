@@ -9,24 +9,31 @@
   /* Espaciado compacto (mismo que las indicaciones de tratamiento): una
      receta habitual entra en una hoja; si la lista es larga, pasa a una
      segunda pagina con el encabezado de continuacion de la base. */
-  @page { margin: 1.8cm 2.2cm 1.6cm; }
-  body { line-height: 1.45; }
-  .membrete { margin-bottom: 18pt; }
-  h1 { margin-bottom: 14pt; }
+  /* Media carta (5.5 x 8.5 in) dentro de una hoja Carta horizontal: se imprime el recipe en una cara y, al voltear la
+     hoja, las indicaciones en la otra; despues se corta por la mitad. El recipe ocupa la mitad IZQUIERDA y las
+     indicaciones la DERECHA (al voltear como pagina de libro quedan una detras de la otra). Cada plantilla fija su
+     margen del lado vacio: 430pt = 5.5 in (396pt) + el margen de 1.2 cm (34pt). */
+  @page { size: 11in 8.5in; margin: 1.1cm 1.2cm 1cm; }
+  body { font-size: 10pt; line-height: 1.35; }
+  .membrete { padding-bottom: 6pt; margin-bottom: 8pt; }
+  .membrete-nombre { font-size: 14pt; }
+  .membrete-detalle { font-size: 7.5pt; margin-top: 1pt; line-height: 1.3; }
+  h1 { font-size: 16pt; margin-bottom: 6pt; }
 
-  .datos { margin: 0 0 14pt; padding-bottom: 8pt; border-bottom: 0.75pt solid var(--borde); }
+  .datos { margin: 0 0 9pt; padding-bottom: 6pt; border-bottom: 0.75pt solid var(--borde); font-size: 9.5pt; }
   .datos p { margin: 0; }
   .datos .etiqueta { color: var(--secundario); }
 
   /* Cada medicamento es un bloque que no se corta entre paginas; el numero
      cuelga a la izquierda para que los nombres queden alineados. */
-  .medicamento { position: relative; padding-left: 22pt; margin: 0 0 13pt; page-break-inside: avoid; }
+  .medicamento { position: relative; padding-left: 18pt; margin: 0 0 7pt; page-break-inside: avoid; }
   .numero { position: absolute; left: 0; top: 0; font-weight: 600; color: var(--acento); }
-  .nombre { margin: 0; font-weight: 600; font-size: 12.5pt; color: var(--primario); }
-  .presentacion { font-weight: 400; font-size: 10.5pt; color: var(--secundario); }
+  .nombre { margin: 0; font-weight: 600; font-size: 11pt; color: var(--primario); }
+  .presentacion { font-weight: 400; font-size: 9pt; color: var(--secundario); }
 
   /* Si no entra, el ultimo bloque pasa de pagina junto con la firma. */
-  .firma { margin-top: 44pt; break-before: avoid; }
+  .firma { margin-top: 14pt; break-before: avoid; }
+  .firma-linea { width: 55%; }
 
   {% block estilos_receta %}{% endblock %}
 {% endblock %}
@@ -34,16 +41,17 @@
 {% block cuerpo %}
     <div class="datos">
       <p><span class="etiqueta">Paciente:</span> <strong class="paciente">{{ paciente_nombre }}</strong></p>
-      {% if paciente_cedula %}
-      <p><span class="etiqueta">C.I.:</span> {{ paciente_cedula }}</p>
+      {% if paciente_cedula or paciente_fecha_nacimiento %}
+      <p>
+        {%- if paciente_cedula %}<span class="etiqueta">C.I.:</span> {{ paciente_cedula }}{% endif %}
+        {%- if paciente_cedula and paciente_fecha_nacimiento %} · {% endif %}
+        {%- if paciente_fecha_nacimiento %}<span class="etiqueta">Nacimiento:</span> {{ paciente_fecha_nacimiento | fecha_larga }}{% endif %}
+      </p>
       {% endif %}
-      {% if paciente_fecha_nacimiento %}
-      <p><span class="etiqueta">Fecha de nacimiento:</span> {{ paciente_fecha_nacimiento | fecha_larga }}</p>
-      {% endif %}
-      {% if paciente_direccion_corta %}
-      <p><span class="etiqueta">Dirección:</span> {{ paciente_direccion_corta }}</p>
-      {% endif %}
-      <p><span class="etiqueta">Fecha:</span> {{ fecha | fecha_larga }}</p>
+      <p>
+        {%- if paciente_direccion_corta %}<span class="etiqueta">Dirección:</span> {{ paciente_direccion_corta }} · {% endif %}
+        <span class="etiqueta">Fecha:</span> {{ fecha | fecha_larga }}
+      </p>
     </div>
 
     {% block antes_lista %}{% endblock %}

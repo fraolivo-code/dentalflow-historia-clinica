@@ -7,9 +7,11 @@
 {% block titulo %}Récipe{% endblock %}
 
 {% block estilos_receta %}
+  /* Mitad izquierda de la hoja Carta horizontal. */
+  @page { margin-right: 430pt; }
   /* "Rp/" (recipe): marca clasica de inicio de la prescripcion. */
-  .rp { font-family: "Fraunces", serif; font-style: italic; font-size: 20pt; color: var(--acento); margin: 0 0 6pt; line-height: 1; }
-  .medicamento { margin-bottom: 9pt; }
+  .rp { font-family: "Fraunces", serif; font-style: italic; font-size: 17pt; color: var(--acento); margin: 0 0 5pt; line-height: 1; }
+  .medicamento { margin-bottom: 7pt; }
 {% endblock %}
 
 {% block antes_lista %}
