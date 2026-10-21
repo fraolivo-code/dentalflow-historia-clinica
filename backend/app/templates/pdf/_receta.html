@@ -37,6 +37,12 @@
       {% if paciente_cedula %}
       <p><span class="etiqueta">C.I.:</span> {{ paciente_cedula }}</p>
       {% endif %}
+      {% if paciente_fecha_nacimiento %}
+      <p><span class="etiqueta">Fecha de nacimiento:</span> {{ paciente_fecha_nacimiento | fecha_larga }}</p>
+      {% endif %}
+      {% if paciente_direccion_corta %}
+      <p><span class="etiqueta">Dirección:</span> {{ paciente_direccion_corta }}</p>
+      {% endif %}
       <p><span class="etiqueta">Fecha:</span> {{ fecha | fecha_larga }}</p>
     </div>
 

@@ -6,7 +6,7 @@
 
 import uuid
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,9 +19,16 @@ class ProfesionalTratante(Base, UUIDPk):
 
     nombre: Mapped[str] = mapped_column(String(300), nullable=False)
     especialidad: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    # Se imprime en receta y constancia (formato legal). Nullable hasta tener
-    # el dato real de cada profesional.
+    # Dato antiguo en un solo texto («C.O.V. 15766 - M.S.D.S. 15491»). Desde la migracion 0039 se usan `cov` y
+    # `mpps`; este queda solo como respaldo para profesionales que aun no los tengan.
     numero_colegiatura: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Membrete de los documentos (migracion 0039, 20/10/2026). COV y MPPS son obligatorios para emitir recetas.
+    direccion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    telefonos: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    correo: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    rif: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    cov: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    mpps: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # Cuenta de acceso que firma como este profesional (25/09/2026): de aca
     # sale emitida_por de los documentos, nunca del body. Null para los
     # especialistas externos, que no tienen cuenta en el sistema.

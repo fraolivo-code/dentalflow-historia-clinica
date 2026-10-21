@@ -72,6 +72,12 @@ async def emitir_receta(
         )
 
     profesional = await profesional_del_usuario(usuario, session)
+    if not (profesional.cov and profesional.mpps):
+        raise HTTPException(
+            409,
+            "Antes de emitir recetas complete su COV y su MPPS en los datos del profesional "
+            "(Usuarios → Editar, o Mi cuenta si es especialista).",
+        )
     receta = Receta(
         paciente_id=paciente_id,
         visita_id=datos.visita_id,
@@ -134,7 +140,6 @@ async def pdf_de_receta(
     session: AsyncSession,
     plantilla: str,
     prefijo: str,
-    con_cedula: bool = True,
 ) -> Response:
     """
     Una misma receta genera 2 documentos (practica real de la Dra.): el
@@ -153,7 +158,9 @@ async def pdf_de_receta(
         {
             "profesional": profesional,
             "paciente_nombre": paciente.nombre_completo,
-            "paciente_cedula": paciente.cedula if con_cedula else None,
+            "paciente_cedula": paciente.cedula,
+            "paciente_fecha_nacimiento": paciente.fecha_nacimiento,
+            "paciente_direccion_corta": paciente.direccion_corta,
             "fecha": receta.fecha,
             "medicamentos": receta.medicamentos,
             "notas_generales": receta.notas_generales,

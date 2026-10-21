@@ -4,9 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_current_usuario, get_session
+from app.deps import get_current_usuario, get_session, requerir_dra
 from app.models.profesional_tratante import ProfesionalTratante
-from app.schemas.profesional_tratante import ProfesionalTratanteCreate, ProfesionalTratanteRead
+from app.schemas.profesional_tratante import (
+    ProfesionalTratanteCreate,
+    ProfesionalTratanteRead,
+    ProfesionalTratanteUpdate,
+)
 
 # Catalogo de nombres de referencia, no dato clinico del paciente ->
 # accesible a ambos roles, solo exige estar autenticado. Asuncion: no estaba
@@ -54,3 +58,26 @@ async def crear_profesional_tratante(
     await session.commit()
     await session.refresh(profesional)
     return profesional
+
+
+@router.patch(
+    "/profesionales-tratantes/{profesional_tratante_id}",
+    response_model=ProfesionalTratanteRead,
+    dependencies=[Depends(requerir_dra)],
+)
+async def actualizar_profesional_tratante(
+    profesional_tratante_id: UUID,
+    datos: ProfesionalTratanteUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    """Corrige o completa el membrete de un profesional (solo acceso total). Lo que no viene en el pedido no cambia."""
+    profesional = await obtener_profesional_tratante_o_404(profesional_tratante_id, session)
+    cambios = datos.model_dump(exclude_unset=True)
+    if "nombre" in cambios and cambios["nombre"] is None:
+        raise HTTPException(422, "El nombre no puede quedar vacío")
+    for campo, valor in cambios.items():
+        setattr(profesional, campo, valor)
+    await session.commit()
+    await session.refresh(profesional)
+    return profesional
+

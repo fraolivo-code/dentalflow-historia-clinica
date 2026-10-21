@@ -14,6 +14,7 @@ from app.models.common import ahora
 from app.models.examen import ExamenSolicitado
 from app.models.odontograma import OdontogramaHallazgo, OdontogramaLesionApical
 from app.models.paciente import Paciente
+from app.models.profesional_tratante import ProfesionalTratante
 from app.models.receta import Receta
 from app.models.remision import AtencionDiente, AtencionEspecialista, Remision
 from app.models.usuario import Usuario
@@ -30,6 +31,7 @@ from app.schemas.especialista import (
     RemisionEspecialista,
 )
 from app.routers.medicamentos import listar_medicamentos
+from app.schemas.profesional_tratante import ProfesionalTratanteRead, ProfesionalTratanteUpdate
 from app.routers.recetas import _con_medicamentos, emitir_receta, pdf_de_receta
 from app.schemas.receta import MedicamentoRead, RecetaCreate, RecetaRead
 from app.schemas.remision import AtencionCreate, AtencionRead
@@ -279,7 +281,7 @@ async def borrar_mi_atencion(
 
 
 # --- Sus recetas --------------------------------------------------------------------------------------------
-# Salen firmadas con su propio profesional (colegiatura). Sin visita ni tratamiento (son de la Dra.) y sin cedula.
+# Salen firmadas con su propio profesional (COV y MPPS). Sin visita ni tratamiento (son de la Dra.).
 
 @router.get("/medicamentos", response_model=list[MedicamentoRead])
 async def medicamentos(
@@ -341,7 +343,7 @@ async def pdf_mi_receta(
     usuario: Usuario = Depends(requerir_especialista),
 ):
     await _mi_receta_o_404(session, usuario, paciente_id, receta_id)
-    return await pdf_de_receta(paciente_id, receta_id, session, "receta.html", "recipe", con_cedula=False)
+    return await pdf_de_receta(paciente_id, receta_id, session, "receta.html", "recipe")
 
 
 @router.get("/pacientes/{paciente_id}/recetas/{receta_id}/pdf-indicaciones")
@@ -353,5 +355,40 @@ async def pdf_mis_indicaciones(
 ):
     await _mi_receta_o_404(session, usuario, paciente_id, receta_id)
     return await pdf_de_receta(
-        paciente_id, receta_id, session, "indicaciones_medicamentos.html", "indicaciones-medicamentos", con_cedula=False
+        paciente_id, receta_id, session, "indicaciones_medicamentos.html", "indicaciones-medicamentos"
     )
+
+
+# --- Sus datos profesionales (membrete de sus recetas) --------------------------------------------------------
+
+async def _mi_profesional(session: AsyncSession, usuario: Usuario) -> ProfesionalTratante:
+    profesional = (
+        await session.execute(select(ProfesionalTratante).where(ProfesionalTratante.usuario_id == usuario.id))
+    ).scalar_one_or_none()
+    if profesional is None:
+        raise HTTPException(409, "Su cuenta aún no está vinculada a un profesional. Pídale a la Dra. que la vincule.")
+    return profesional
+
+
+@router.get("/mi-perfil", response_model=ProfesionalTratanteRead)
+async def mi_perfil(session: AsyncSession = Depends(get_session), usuario: Usuario = Depends(requerir_especialista)):
+    return await _mi_profesional(session, usuario)
+
+
+@router.patch("/mi-perfil", response_model=ProfesionalTratanteRead)
+async def actualizar_mi_perfil(
+    datos: ProfesionalTratanteUpdate,
+    session: AsyncSession = Depends(get_session),
+    usuario: Usuario = Depends(requerir_especialista),
+):
+    """Completa o corrige su propio membrete. Solo su profesional, nunca el de otro."""
+    profesional = await _mi_profesional(session, usuario)
+    cambios = datos.model_dump(exclude_unset=True)
+    if "nombre" in cambios and cambios["nombre"] is None:
+        raise HTTPException(422, "El nombre no puede quedar vacío")
+    for campo, valor in cambios.items():
+        setattr(profesional, campo, valor)
+    await session.commit()
+    await session.refresh(profesional)
+    return profesional
+

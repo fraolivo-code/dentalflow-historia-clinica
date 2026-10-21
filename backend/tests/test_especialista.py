@@ -71,6 +71,7 @@ async def _paciente(client, h, nombre="Paciente Prueba"):
             "fecha_registro": "2026-10-05",
             "fecha_nacimiento": NAC_MENOR,
             "direccion": "Calle Secreta 123",
+            "direccion_corta": "Mun. Sucre",
             "empresa_profesion_cargo": "Empresa Reservada",
             "seguro": "Seguro Reservado",
             "fuma": True,
@@ -412,8 +413,8 @@ async def profesionales(session_factory, cuentas):
     from app.models import ProfesionalTratante
 
     async with session_factory() as s:
-        s.add(ProfesionalTratante(nombre="Dra Granados", usuario_id=cuentas["doctora"]))
-        s.add(ProfesionalTratante(nombre="Dr Cirujano", usuario_id=cuentas["cirujano"], numero_colegiatura="CM-123"))
+        s.add(ProfesionalTratante(nombre="Dra Granados", usuario_id=cuentas["doctora"], cov="1", mpps="2"))
+        s.add(ProfesionalTratante(nombre="Dr Cirujano", usuario_id=cuentas["cirujano"], cov="CM-123", mpps="MS-456", direccion="Av. Principal, Caracas", telefonos="0212-5551234", correo="dr@e.com", rif="V-123"))
         await s.commit()
 
 
@@ -464,7 +465,7 @@ async def test_solo_ve_y_descarga_sus_recetas(client, h_dra, h_cirujano, h_endo,
     from app.models import ProfesionalTratante
 
     async with session_factory() as s:
-        s.add(ProfesionalTratante(nombre="Dr Endo", usuario_id=cuentas["endodoncista"]))
+        s.add(ProfesionalTratante(nombre="Dr Endo", usuario_id=cuentas["endodoncista"], cov="9", mpps="8"))
         await s.commit()
     pid = await _paciente(client, h_dra)
     await _remitir(client, h_dra, pid, cuentas, "cirujano")
@@ -479,7 +480,9 @@ async def test_solo_ve_y_descarga_sus_recetas(client, h_dra, h_cirujano, h_endo,
 
     r = await client.get(f"/especialista/pacientes/{pid}/recetas/{rc['id']}/pdf", headers=h_cirujano)
     assert r.status_code == 200 and r.content.startswith(b"%PDF")
-    assert pdf_capturado["profesional"].nombre == "Dr Cirujano" and pdf_capturado["paciente_cedula"] is None
+    assert pdf_capturado["profesional"].nombre == "Dr Cirujano" and "paciente_cedula" in pdf_capturado
+    assert pdf_capturado["paciente_direccion_corta"] == "Mun. Sucre"
+    assert pdf_capturado["paciente_fecha_nacimiento"].isoformat() == NAC_MENOR
     assert (await client.get(f"/especialista/pacientes/{pid}/recetas/{rc['id']}/pdf-indicaciones", headers=h_cirujano)).status_code == 200
 
 
@@ -586,3 +589,63 @@ async def test_la_consulta_del_puente_exige_su_clave(client, cuentas, monkeypatc
     monkeypatch.delenv("CORREO_PUENTE_TOKEN")
     assert (await client.get(ruta, params={"email": "cirujano@e.com"}, headers={"X-Puente-Token": ""})).status_code == 401
     assert (await client.get(ruta, params={"email": "cirujano@e.com"}, headers={"X-Puente-Token": TOKEN_PUENTE})).status_code == 401
+
+
+# ============================== membrete del profesional (migracion 0039) ==============================
+
+async def test_no_se_emite_receta_sin_cov_y_mpps(client, h_dra, h_cirujano, cuentas, session_factory):
+    from app.models import ProfesionalTratante
+
+    async with session_factory() as s:
+        s.add(ProfesionalTratante(nombre="Dr Sin Datos", usuario_id=cuentas["cirujano"], cov="123"))   # falta el MPPS
+        await s.commit()
+    pid = await _paciente(client, h_dra)
+    await _remitir(client, h_dra, pid, cuentas)
+    r = await client.post(f"/especialista/pacientes/{pid}/recetas", headers=h_cirujano, json={"medicamentos": [LINEA]})
+    assert r.status_code == 409 and "MPPS" in r.json()["detail"]
+    # lo completa el mismo y ya puede emitir
+    assert (await client.patch("/especialista/mi-perfil", headers=h_cirujano, json={"mpps": " 456 "})).json()["mpps"] == "456"
+    assert (await client.post(f"/especialista/pacientes/{pid}/recetas", headers=h_cirujano, json={"medicamentos": [LINEA]})).status_code == 201
+
+
+async def test_la_dra_corrige_el_membrete_de_un_profesional_y_la_asistente_no(client, h_dra, h_asistente, profesionales):
+    lista = (await client.get("/profesionales-tratantes", headers=h_dra)).json()
+    prof = next(p for p in lista if p["nombre"] == "Dr Cirujano")
+    assert prof["cov"] == "CM-123" and prof["rif"] == "V-123" and prof["direccion"] == "Av. Principal, Caracas"
+    r = await client.patch(f"/profesionales-tratantes/{prof['id']}", headers=h_dra, json={"nombre": "Dr. Cirujano Prueba", "telefonos": "  ", "rif": "J-9"})
+    assert r.status_code == 200 and r.json()["nombre"] == "Dr. Cirujano Prueba" and r.json()["telefonos"] is None and r.json()["rif"] == "J-9"
+    assert r.json()["cov"] == "CM-123"                      # lo que no viene no cambia
+    assert (await client.patch(f"/profesionales-tratantes/{prof['id']}", headers=h_dra, json={"nombre": "  "})).status_code == 422
+    assert (await client.patch(f"/profesionales-tratantes/{prof['id']}", headers=h_asistente, json={"rif": "x"})).status_code == 403
+
+
+async def test_el_especialista_solo_ve_y_edita_su_propio_perfil(client, h_dra, h_cirujano, h_endo, cuentas, profesionales):
+    mio = (await client.get("/especialista/mi-perfil", headers=h_cirujano)).json()
+    assert mio["nombre"] == "Dr Cirujano" and mio["cov"] == "CM-123"
+    assert (await client.get("/especialista/mi-perfil", headers=h_endo)).status_code == 409      # no tiene profesional vinculado
+    assert (await client.get("/especialista/mi-perfil", headers=h_dra)).status_code == 403
+    # el cirujano cambia el suyo; el de la Dra. no se toca
+    assert (await client.patch("/especialista/mi-perfil", headers=h_cirujano, json={"especialidad": "Cirugía bucal"})).json()["especialidad"] == "Cirugía bucal"
+    dra = next(p for p in (await client.get("/profesionales-tratantes", headers=h_dra)).json() if p["nombre"] == "Dra Granados")
+    assert dra["especialidad"] is None
+
+
+def test_el_membrete_y_el_paciente_salen_en_el_recipe():
+    from types import SimpleNamespace
+
+    from app.services import pdf as servicio_pdf
+
+    prof = SimpleNamespace(
+        nombre="OD Martha Fernandez", especialidad="Cirugía bucal", direccion="Av. Francisco de Miranda, Los Ruices",
+        telefonos="(+58-212) 237.4468", correo="m@e.com", rif="V-1", cov="7747", mpps="8353", numero_colegiatura=None,
+    )
+    plantilla = servicio_pdf._plantillas.get_template("receta.html")
+    html = plantilla.render(
+        profesional=prof, paciente_nombre="Paciente Ficticio", paciente_cedula="V-4022837",
+        paciente_fecha_nacimiento=date(1990, 3, 4), paciente_direccion_corta="Mun. Sucre",
+        fecha=date(2026, 10, 20), medicamentos=[], notas_generales=None, ciudad="Caracas",
+    )
+    for texto in ("OD Martha Fernandez", "Cirugía bucal", "Los Ruices", "Telf.: (+58-212) 237.4468", "m@e.com",
+                  "RIF: V-1 · COV: 7747 · MPPS: 8353", "COV: 7747 · MPPS: 8353", "V-4022837",
+                  "4 de marzo de 1990", "Mun. Sucre"):
+        assert texto in html, texto

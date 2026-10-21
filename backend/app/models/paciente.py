@@ -46,6 +46,8 @@ class Paciente(Base, UUIDPk, AuditMixin):
     cedula_representante: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fecha_nacimiento: Mapped[date | None] = mapped_column(Date, nullable=True)
     direccion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Municipio/sector para el recipe (20/10/2026); la direccion completa no se imprime.
+    direccion_corta: Mapped[str | None] = mapped_column(String(120), nullable=True)
     email: Mapped[str | None] = mapped_column(String(300), nullable=True)
     empresa_profesion_cargo: Mapped[str | None] = mapped_column(String(300), nullable=True)
     # "N/A" para pacientes ya existentes transcritos sin este dato (confirmado con la Dra.).

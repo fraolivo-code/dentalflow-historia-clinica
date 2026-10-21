@@ -60,6 +60,7 @@ class PacienteCreate(BaseModel):
     cedula_representante: str | None = None
     fecha_nacimiento: date | None = None
     direccion: str | None = None
+    direccion_corta: str | None = None
     email: str | None = None
     empresa_profesion_cargo: str | None = None
     referido_por: str = "N/A"
@@ -133,6 +134,7 @@ class PacienteUpdate(BaseModel):
     cedula_representante: str | None = None
     fecha_nacimiento: date | None = None
     direccion: str | None = None
+    direccion_corta: str | None = None
     email: str | None = None
     empresa_profesion_cargo: str | None = None
     referido_por: str | None = None
@@ -211,6 +213,7 @@ class PacienteRead(AuditRead):
     cedula_representante: str | None
     fecha_nacimiento: date | None
     direccion: str | None
+    direccion_corta: str | None = None
     email: str | None
     empresa_profesion_cargo: str | None
     referido_por: str

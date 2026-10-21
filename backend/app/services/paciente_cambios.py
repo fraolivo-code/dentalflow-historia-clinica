@@ -13,7 +13,7 @@ from app.models.paciente import Paciente
 from app.models.paciente_cambio import PacienteCambio
 
 # Contacto: lo corrigen la asistente y el acceso total.
-CAMPOS_CONTACTO = frozenset({"movil", "telefono_fijo", "email", "direccion"})
+CAMPOS_CONTACTO = frozenset({"movil", "telefono_fijo", "email", "direccion", "direccion_corta"})
 
 # Etiqueta legible de cada campo. Todo campo editable que NO este en
 # CAMPOS_CONTACTO se trata como personal (solo acceso total), este o no aqui.
@@ -29,6 +29,7 @@ ETIQUETAS = {
     "telefono_fijo": "Teléfono fijo",
     "email": "Correo electrónico",
     "direccion": "Dirección",
+    "direccion_corta": "Dirección corta (municipio)",
     "empresa_profesion_cargo": "Empresa / profesión / cargo",
     "referido_por": "Referido por",
     "fuma": "Fuma",

@@ -72,10 +72,27 @@
     {% if membrete.detalle %}<p class="membrete-detalle">{{ membrete.detalle }}</p>{% endif %}
   {% else %}
     <p class="membrete-nombre">{{ profesional.nombre }}</p>
+    <p class="membrete-detalle">{{ profesional.especialidad or "Odontología" }}</p>
+    {% if profesional.direccion %}<p class="membrete-detalle">{{ profesional.direccion }}</p>{% endif %}
+    {% if profesional.telefonos or profesional.correo %}
     <p class="membrete-detalle">
-      {{ profesional.especialidad or "Odontología" }}
-      {%- if profesional.numero_colegiatura %} · N.° de colegiatura {{ profesional.numero_colegiatura }}{% endif %}
+      {%- if profesional.telefonos %}Telf.: {{ profesional.telefonos }}{% endif %}
+      {%- if profesional.telefonos and profesional.correo %} · {% endif %}
+      {%- if profesional.correo %}{{ profesional.correo }}{% endif %}
     </p>
+    {% endif %}
+    {#- RIF, COV y MPPS; sin ellos (profesional antiguo) se usa el texto viejo de colegiatura. #}
+    {% if profesional.rif or profesional.cov or profesional.mpps %}
+    <p class="membrete-detalle">
+      {%- set partes = [] %}
+      {%- if profesional.rif %}{% set _ = partes.append("RIF: " ~ profesional.rif) %}{% endif %}
+      {%- if profesional.cov %}{% set _ = partes.append("COV: " ~ profesional.cov) %}{% endif %}
+      {%- if profesional.mpps %}{% set _ = partes.append("MPPS: " ~ profesional.mpps) %}{% endif %}
+      {{ partes | join(" · ") }}
+    </p>
+    {% elif profesional.numero_colegiatura %}
+    <p class="membrete-detalle">N.° de colegiatura {{ profesional.numero_colegiatura }}</p>
+    {% endif %}
   {% endif %}
   </header>
 
@@ -91,7 +108,13 @@
     <div class="firma-linea"></div>
     <p class="firma-nombre">{{ profesional.nombre }}</p>
     <p class="firma-detalle">{{ profesional.especialidad or "Odontología" }}</p>
-    {% if profesional.numero_colegiatura %}
+    {% if profesional.cov or profesional.mpps %}
+    <p class="firma-detalle">
+      {%- if profesional.cov %}COV: {{ profesional.cov }}{% endif %}
+      {%- if profesional.cov and profesional.mpps %} · {% endif %}
+      {%- if profesional.mpps %}MPPS: {{ profesional.mpps }}{% endif %}
+    </p>
+    {% elif profesional.numero_colegiatura %}
     <p class="firma-detalle">N.° de colegiatura {{ profesional.numero_colegiatura }}</p>
     {% endif %}
   </footer>
