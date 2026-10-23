@@ -39,6 +39,10 @@
   body { font-family: "Inter", sans-serif; font-size: 11.5pt; color: var(--texto); line-height: 1.7; margin: 0; }
 
   .membrete { border-bottom: 1.5pt solid var(--acento); padding-bottom: 10pt; margin-bottom: 44pt; }
+  /* Logo de la Dra. a la izquierda del nombre; los impresos en blanco (con
+     `membrete`) aun no lo llevan. */
+  .membrete::after { content: ""; display: block; clear: both; }
+  .membrete-logo { float: left; height: 2cm; margin: 0 10pt 0 0; }
   .membrete-nombre { font-family: "Fraunces", serif; font-weight: 600; font-size: 20pt; color: var(--primario); line-height: 1.2; margin: 0; }
   .membrete-detalle { font-size: 9.5pt; color: var(--secundario); margin: 2pt 0 0; line-height: 1.4; }
 
@@ -71,6 +75,7 @@
     <p class="membrete-nombre">{{ membrete.nombre }}</p>
     {% if membrete.detalle %}<p class="membrete-detalle">{{ membrete.detalle }}</p>{% endif %}
   {% else %}
+    <img class="membrete-logo" src="logo-dra.png" alt="">
     <p class="membrete-nombre">{{ profesional.nombre }}</p>
     <p class="membrete-detalle">{{ profesional.especialidad or "Odontología" }}</p>
     {% if profesional.direccion %}<p class="membrete-detalle">{{ profesional.direccion }}</p>{% endif %}
